@@ -1,38 +1,36 @@
-import { useState, useEffect } from 'react'
+import React from 'react'
 
-const TopBanner = () => {
-  const messages = [
-    "DESPACHOS A TODO CHILE",
-    "DESCUENTOS ESPECIALES", 
-    "DESPACHOS A TODO CHILE",
-  ]
+const phrases = [
+  "¡Nuevas colecciones cada semana!",
+  "Envío gratis en compras superiores a $50",
+  "Descubre tu estilo único",
+  "Descuentos exclusivos solo por hoy",
+  "Moda sostenible y responsable",
+  "Compra ahora, paga después",
+  "Tendencias que inspiran",
+  "¡Viste diferente, viste auténtico!"
+]
 
-  return (
-    <div className="bg-black text-white text-center py-3 text-sm relative overflow-hidden">
-      {/* Contenedor del texto en movimiento */}
-      <div className="whitespace-nowrap">
-        <div className="inline-block animate-scroll">
-          {/* Repetimos el contenido para crear el efecto continuo */}
-          <span className="inline-block px-8">
-            {messages.map((message, index) => (
-              <span key={index} className="font-medium tracking-wider px-16">
-                {message}
-                <span className="mx-8">•</span>
-              </span>
-            ))}
-          </span>
-          <span className="inline-block px-8">
-            {messages.map((message, index) => (
-              <span key={`duplicate-${index}`} className="font-medium tracking-wider px-16">
-                {message}
-                <span className="mx-8">•</span>
-              </span>
-            ))}
-          </span>
-        </div>
-      </div>
+const TopBanner = () => (
+  <div className="bg-black text-white overflow-hidden py-3 w-full">
+    <div className="whitespace-nowrap animate-marquee flex">
+      {phrases.concat(phrases).map((phrase, idx) => (
+        <span key={idx} className="mx-8 text-sm font-semibold">
+          {phrase}
+        </span>
+      ))}
     </div>
-  )
-}
+    <style>{`
+      @keyframes marquee {
+        0% { transform: translateX(0%); }
+        100% { transform: translateX(-50%); }
+      }
+      .animate-marquee {
+        display: flex;
+        animation: marquee 18s linear infinite;
+      }
+    `}</style>
+  </div>
+)
 
 export default TopBanner

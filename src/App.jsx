@@ -3,6 +3,8 @@ import TopBanner from './components/TopBanner'
 import Header from './components/Header'
 import Hero from './components/Hero'
 import ProductSection from './components/ProductSection'
+import SocialCommitment from './components/SocialCommitment'
+import Footer from './components/Footer'
 
 function App() {
   return (
@@ -11,6 +13,8 @@ function App() {
       <Header />
       <Hero />
       <ProductSection />
+      <SocialCommitment />
+      <Footer />
     </div>
   )
 }
