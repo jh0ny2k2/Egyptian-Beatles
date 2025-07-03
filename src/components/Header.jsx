@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const menuItems = [
   { label: 'Mujer', sub: ['Vestidos', 'Tops', 'Pantalones', 'Faldas', 'Abrigos', 'Zapatos', 'Accesorios'] },
@@ -14,6 +15,7 @@ function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [submenu, setSubmenu] = useState(null)
   const [searchOpen, setSearchOpen] = useState(false);
+  const { user, isLoggedIn } = useAuth();
 
   return (
     <header className="bg-white shadow-md sticky top-0 z-50">
@@ -36,8 +38,8 @@ function Header() {
         <Link to="/"><div className="flex-1 flex justify-center items-center">
           <span className="font-extrabold text-2xl text-gray-900 tracking-tight">Egyptian<span className="font-normal mr-1">Beatles</span></span>
         </div></Link>
-        {/* Right: Cart */}
-        <div className="flex items-center">
+        {/* Right: Cart + Login */}
+        <div className="flex items-center space-x-2">
           <button className="text-gray-700 focus:outline-none relative" onClick={() => setCartOpen(true)}>
             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <circle cx="9" cy="21" r="1" />
@@ -46,6 +48,26 @@ function Header() {
             </svg>
             <span className="absolute -top-2 -right-2 bg-black text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">0</span>
           </button>
+          {/* Botón de usuario - cambia según el estado de autenticación */}
+          <Link 
+            to={isLoggedIn ? "/perfil" : "/login"} 
+            className="ml-2 flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors" 
+            aria-label={isLoggedIn ? `Perfil de ${user?.nombre}` : "Iniciar sesión"}
+            title={isLoggedIn ? `Hola, ${user?.nombre}` : "Iniciar sesión"}
+          >
+            {isLoggedIn ? (
+              <div className="flex items-center space-x-2">
+                <div className="w-6 h-6 bg-black text-white rounded-full flex items-center justify-center text-xs font-bold">
+                  {user?.nombre?.charAt(0).toUpperCase()}
+                </div>
+                <span className="hidden sm:block text-sm font-medium text-gray-700">
+                  {user?.nombre}
+                </span>
+              </div>
+            ) : (
+              <img src="/src/assets/img/usuario.png" className="w-6 h-6" alt="Iniciar sesión" />
+            )}
+          </Link>
         </div>
       </div>
 
