@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { Link } from "react-router-dom";
 
 const menuItems = [
   { label: 'Mujer', sub: ['Vestidos', 'Tops', 'Pantalones', 'Faldas', 'Abrigos', 'Zapatos', 'Accesorios'] },
@@ -32,9 +33,9 @@ function Header() {
           </button>
         </div>
         {/* Center: Logo */}
-        <div className="flex-1 flex justify-center items-center">
+        <Link to="/"><div className="flex-1 flex justify-center items-center">
           <span className="font-extrabold text-2xl text-gray-900 tracking-tight">Egyptian<span className="font-normal mr-1">Beatles</span></span>
-        </div>
+        </div></Link>
         {/* Right: Cart */}
         <div className="flex items-center">
           <button className="text-gray-700 focus:outline-none relative" onClick={() => setCartOpen(true)}>
