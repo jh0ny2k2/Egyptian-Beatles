@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useCart } from "../context/CartContext";
 
 const menuItems = [
   { label: 'Mujer', sub: ['Vestidos', 'Tops', 'Pantalones', 'Faldas', 'Abrigos', 'Zapatos', 'Accesorios'] },
@@ -11,11 +12,11 @@ const menuItems = [
 ]
 
 function Header() {
-  const [cartOpen, setCartOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false)
   const [submenu, setSubmenu] = useState(null)
   const [searchOpen, setSearchOpen] = useState(false);
   const { user, isLoggedIn } = useAuth();
+  const { cartItems, isCartOpen, toggleCart, removeFromCart, updateQuantity, getCartTotal, getCartItemsCount } = useCart();
 
   return (
     <header className="bg-white shadow-md sticky top-0 z-50">
@@ -40,13 +41,13 @@ function Header() {
         </div></Link>
         {/* Right: Cart + Login */}
         <div className="flex items-center space-x-2">
-          <button className="text-gray-700 focus:outline-none relative" onClick={() => setCartOpen(true)}>
+          <button className="text-gray-700 focus:outline-none relative" onClick={toggleCart}>
             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <circle cx="9" cy="21" r="1" />
               <circle cx="20" cy="21" r="1" />
               <path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
             </svg>
-            <span className="absolute -top-2 -right-2 bg-black text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">0</span>
+            <span className="absolute -top-2 -right-2 bg-black text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">{getCartItemsCount()}</span>
           </button>
           {/* Botón de usuario - cambia según el estado de autenticación */}
           <Link 
@@ -72,33 +73,102 @@ function Header() {
       </div>
 
       {/* Cart Modal */}
-      {cartOpen && (
+      {isCartOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center md:justify-end md:items-start">
-          <div className="bg-black bg-opacity-40 w-full h-full absolute top-0 left-0" onClick={() => setCartOpen(false)}></div>
+          <div className="bg-black bg-opacity-40 w-full h-full absolute top-0 left-0" onClick={toggleCart}></div>
           <aside className="relative w-full max-w-md md:w-96 h-full md:h-[95vh] bg-white shadow-xl flex flex-col rounded-none md:rounded-xl m-0 md:m-4 z-10 animate-slideInUp">
             <button
               className="absolute top-4 right-4 text-gray-500 hover:text-black text-2xl"
-              onClick={() => setCartOpen(false)}
+              onClick={toggleCart}
               aria-label="Cerrar carrito"
             >
               ×
             </button>
-            <div className="flex-1 flex flex-col items-center justify-center text-gray-700 p-8">
-              <div className="mb-6 flex flex-col items-center">
-                <div className="relative">
-                  <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <circle cx="9" cy="21" r="1" />
-                    <circle cx="20" cy="21" r="1" />
-                    <path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                  </svg>
-                  <span className="absolute -top-2 -right-2 bg-black text-white text-xs rounded-full px-1.5 py-0.5 font-bold">0</span>
+            
+            {cartItems.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-gray-700 p-8">
+                <div className="mb-6 flex flex-col items-center">
+                  <div className="relative">
+                    <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <circle cx="9" cy="21" r="1" />
+                      <circle cx="20" cy="21" r="1" />
+                      <path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                    </svg>
+                    <span className="absolute -top-2 -right-2 bg-black text-white text-xs rounded-full px-1.5 py-0.5 font-bold">0</span>
+                  </div>
                 </div>
+                <span className="text-center text-lg mb-6">El carrito está vacío</span>
+                <button 
+                  className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-900 transition-colors max-w-xs"
+                  onClick={toggleCart}
+                >
+                  Seguir comprando
+                </button>
               </div>
-              <span className="text-center text-lg mb-6">El carrito está vacío</span>
-              <button className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-900 transition-colors max-w-xs">
-                Seguir comprando
-              </button>
-            </div>
+            ) : (
+              <>
+                <div className="p-6 border-b">
+                  <h2 className="text-xl font-bold">Carrito de compras</h2>
+                  <p className="text-gray-600">{getCartItemsCount()} artículos</p>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto p-6">
+                  {cartItems.map((item) => (
+                    <div key={item.id} className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
+                      <img 
+                        src={item.image || item.imagen} 
+                        alt={item.name || item.nombre} 
+                        className="w-16 h-16 object-cover rounded-lg"
+                      />
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-sm">{item.name || item.nombre}</h3>
+                        <p className="text-gray-600 text-xs">{item.category}</p>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="font-bold">{item.price}</span>
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                              className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center text-sm hover:bg-gray-100"
+                            >
+                              -
+                            </button>
+                            <span className="text-sm font-medium">{item.quantity}</span>
+                            <button 
+                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                              className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center text-sm hover:bg-gray-100"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => removeFromCart(item.id)}
+                        className="text-gray-400 hover:text-red-500 text-sm"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="p-6 border-t bg-gray-50">
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="font-bold text-lg">Total:</span>
+                    <span className="font-bold text-xl">${getCartTotal().toFixed(2)}</span>
+                  </div>
+                  <button className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-900 transition-colors mb-2">
+                    Proceder al pago
+                  </button>
+                  <button 
+                    onClick={toggleCart}
+                    className="w-full border border-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+                  >
+                    Seguir comprando
+                  </button>
+                </div>
+              </>
+            )}
           </aside>
         </div>
       )}
