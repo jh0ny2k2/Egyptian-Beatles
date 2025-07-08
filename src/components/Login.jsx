@@ -56,6 +56,7 @@ function Login() {
         id: user.id,
         nombre: user.nombre,
         email: user.email,
+        role: user.role || 'user', // Añadimos el rol, con valor por defecto 'user'
         isLoggedIn: true,
         loginTime: new Date().toISOString()
       };

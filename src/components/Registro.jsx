@@ -41,9 +41,10 @@ function Registro() {
         .insert([{ 
           nombre: nombre,
           email: email,
-          password: hashedPassword
+          password: hashedPassword,
+          role: 'user' // Añadimos el rol por defecto
         }])
-        .select(); // Agregar select() para obtener los datos insertados
+        .select();
       
       if (error) {
         setError(error.message);
