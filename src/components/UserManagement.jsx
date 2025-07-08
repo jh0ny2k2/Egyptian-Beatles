@@ -16,8 +16,6 @@ function UserManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 10;
-  // Estado para controlar la vista en móviles
-  const [viewMode, setViewMode] = useState('table'); // 'table' o 'cards'
 
   // Cargar usuarios al montar el componente
   useEffect(() => {
@@ -96,10 +94,6 @@ function UserManagement() {
       role: user.role || 'user'
     });
     setShowForm(true);
-    // Scroll al formulario en dispositivos móviles
-    if (window.innerWidth < 768) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
   };
 
   const handleDelete = async (id) => {
@@ -159,56 +153,10 @@ function UserManagement() {
   const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
   const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
 
-  // Renderizar tarjeta de usuario para vista móvil
-  const renderUserCard = (user) => (
-    <div key={user.id} className="bg-white p-4 rounded-lg shadow-md border border-gray-200 mb-4 animate-fadeIn">
-      <div className="flex items-center mb-3">
-        <div className="flex-shrink-0 h-12 w-12 bg-gray-200 rounded-full flex items-center justify-center mr-3">
-          <span className="text-lg font-medium text-gray-500">{user.nombre?.charAt(0).toUpperCase() || '?'}</span>
-        </div>
-        <div>
-          <h3 className="text-lg font-medium text-gray-900">{user.nombre}</h3>
-          <p className="text-sm text-gray-500">{user.email}</p>
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-2 gap-2 mb-3 text-sm">
-        <div>
-          <span className="font-medium">ID:</span> {user.id}
-        </div>
-        <div>
-          <span className="font-medium">Teléfono:</span> {user.telefono || '-'}
-        </div>
-        <div className="col-span-2">
-          <span className="font-medium">Rol:</span> 
-          <span className={`ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}`}>
-            {user.role === 'admin' ? 'Administrador' : 'Usuario'}
-          </span>
-        </div>
-      </div>
-      
-      <div className="flex justify-between mt-3 pt-3 border-t border-gray-200">
-        <button
-          onClick={() => handleEdit(user)}
-          className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-md text-sm font-medium hover:bg-indigo-200 transition-colors"
-        >
-          Editar
-        </button>
-        <button
-          onClick={() => handleDelete(user.id)}
-          className="bg-red-100 text-red-700 px-3 py-1 rounded-md text-sm font-medium hover:bg-red-200 transition-colors"
-        >
-          Eliminar
-        </button>
-      </div>
-    </div>
-  );
-
   return (
-    <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 space-y-6">
-      {/* Header con título y botones */}
+    <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 className="text-xl font-semibold text-gray-900">Gestión de Usuarios</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Gestión de Usuarios</h2>
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
           <div className="relative w-full sm:w-64">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -226,13 +174,7 @@ function UserManagement() {
           </div>
           {!showForm && (
             <button
-              onClick={() => {
-                setShowForm(true);
-                // Scroll al formulario en dispositivos móviles
-                if (window.innerWidth < 768) {
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }
-              }}
+              onClick={() => setShowForm(true)}
               className="w-full sm:w-auto bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center"
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -244,24 +186,6 @@ function UserManagement() {
         </div>
       </div>
 
-      {/* Selector de vista para móviles */}
-      <div className="sm:hidden mb-4 flex rounded-md shadow-sm" role="group">
-        <button
-          type="button"
-          onClick={() => setViewMode('table')}
-          className={`px-4 py-2 text-sm font-medium rounded-l-lg flex-1 ${viewMode === 'table' ? 'bg-black text-white' : 'bg-white text-gray-700 border border-gray-300'}`}
-        >
-          Tabla
-        </button>
-        <button
-          type="button"
-          onClick={() => setViewMode('cards')}
-          className={`px-4 py-2 text-sm font-medium rounded-r-lg flex-1 ${viewMode === 'cards' ? 'bg-black text-white' : 'bg-white text-gray-700 border border-gray-300'}`}
-        >
-          Tarjetas
-        </button>
-      </div>
-
       {error && (
         <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded" role="alert">
           <p className="font-bold">Error</p>
@@ -270,7 +194,7 @@ function UserManagement() {
       )}
 
       {showForm && (
-        <div className="bg-gray-50 p-4 sm:p-6 rounded-lg border border-gray-200 mb-6 animate-fadeIn">
+        <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-6 animate-fadeIn">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
             {currentUser ? (
               <>
@@ -338,7 +262,7 @@ function UserManagement() {
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 mt-4">
               <button
                 type="submit"
-                className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors flex-1 flex items-center justify-center order-1 sm:order-2"
+                className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors flex-1 flex items-center justify-center"
                 disabled={loading}
               >
                 {loading ? (
@@ -354,7 +278,7 @@ function UserManagement() {
               <button
                 type="button"
                 onClick={resetForm}
-                className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors flex-1 flex items-center justify-center order-2 sm:order-1"
+                className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors flex-1 flex items-center justify-center"
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -366,135 +290,72 @@ function UserManagement() {
         </div>
       )}
 
-      {/* Vista de carga */}
-      {loading && users.length === 0 && (
+      {loading && !showForm ? (
         <div className="flex justify-center items-center py-8">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
         </div>
-      )}
-
-      {/* Vista de usuarios vacía */}
-      {!loading && users.length === 0 && (
-        <div className="bg-gray-50 p-8 rounded-lg text-center">
-          <p className="text-gray-500 mb-4">No hay usuarios disponibles</p>
-          <button 
-            onClick={() => setShowForm(true)}
-            className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800 transition-colors"
-          >
-            Crear Primer Usuario
-          </button>
-        </div>
-      )}
-
-      {/* Vista de tarjetas para móviles */}
-      {!loading && users.length > 0 && viewMode === 'cards' && (
-        <div className="grid grid-cols-1 gap-4">
-          {currentUsers.map(user => renderUserCard(user))}
-          
-          {/* Paginación */}
-          {filteredUsers.length > usersPerPage && (
-            <div className="flex justify-center mt-4">
-              <nav className="inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  <span className="sr-only">Anterior</span>
-                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </button>
-                {[...Array(totalPages)].map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCurrentPage(i + 1)}
-                    className={`relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium ${currentPage === i + 1 ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:bg-gray-50'}`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  <span className="sr-only">Siguiente</span>
-                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                  </svg>
-                </button>
-              </nav>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Tabla de usuarios (vista por defecto y para escritorio) */}
-      {!loading && users.length > 0 && viewMode === 'table' && (
+      ) : (
         <>
-          <div className="overflow-x-auto -mx-4 sm:mx-0">
-            <div className="inline-block min-w-full align-middle">
+          <div className="bg-white shadow-md rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Teléfono</th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rol</th>
-                    <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Teléfono</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rol</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {currentUsers.length > 0 ? (
                     currentUsers.map((user) => (
                       <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">{user.id}</td>
-                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.id}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex-shrink-0 h-8 w-8 bg-gray-200 rounded-full flex items-center justify-center">
-                              <span className="text-xs sm:text-sm font-medium text-gray-500">{user.nombre?.charAt(0).toUpperCase() || '?'}</span>
+                              <span className="text-sm font-medium text-gray-500">{user.nombre?.charAt(0).toUpperCase() || '?'}</span>
                             </div>
                             <div className="ml-3">
-                              <div className="text-xs sm:text-sm font-medium text-gray-900">{user.nombre}</div>
+                              <div className="text-sm font-medium text-gray-900">{user.nombre}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">{user.email}</td>
-                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 hidden sm:table-cell">{user.telefono || '-'}</td>
-                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">{user.telefono || '-'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}`}>
                             {user.role === 'admin' ? 'Administrador' : 'Usuario'}
                           </span>
                         </td>
-                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-right">
-                          <div className="flex flex-col sm:flex-row sm:justify-end sm:space-x-3 space-y-1 sm:space-y-0">
-                            <button
-                              onClick={() => handleEdit(user)}
-                              className="text-indigo-600 hover:text-indigo-900"
-                            >
-                              <span className="hidden sm:inline">Editar</span>
-                              <svg className="w-5 h-5 inline sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => handleDelete(user.id)}
-                              className="text-red-600 hover:text-red-900"
-                            >
-                              <span className="hidden sm:inline">Eliminar</span>
-                              <svg className="w-5 h-5 inline sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                          </div>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <button
+                            onClick={() => handleEdit(user)}
+                            className="text-indigo-600 hover:text-indigo-900 mr-4"
+                          >
+                            <span className="hidden sm:inline">Editar</span>
+                            <svg className="w-5 h-5 inline sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleDelete(user.id)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            <span className="hidden sm:inline">Eliminar</span>
+                            <svg className="w-5 h-5 inline sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="6" className="px-3 sm:px-6 py-4 text-center text-sm text-gray-500">
+                      <td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500">
                         {searchTerm ? 'No se encontraron usuarios con ese criterio' : 'No hay usuarios registrados'}
                       </td>
                     </tr>

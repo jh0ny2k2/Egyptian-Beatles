@@ -1,5 +1,5 @@
-import React from "react";
-import { Routes, Route } from "react-router-dom";
+import React, { useEffect } from "react";
+import { Routes, Route, useLocation } from "react-router-dom";
 import Header from "./components/Header";
 import Hero from "./components/Hero";
 import ProductSection from "./components/ProductSection";
@@ -15,8 +15,33 @@ import Perfil from './components/Perfil';
 import Sostenibilidad from './components/Sostenibilidad';
 import Contacto from './components/Contacto';
 import Admin from './components/Admin';
+import { supabase } from "./supabaseClient";
+import { useAuth } from "./context/AuthContext";
 
 function App() {
+  const location = useLocation();
+  const { user } = useAuth();
+
+  // Función para registrar visitas
+  const registrarVisita = async (pagina) => {
+    try {
+      const visitaData = {
+        pagina,
+        user_id: user?.id || null,
+        user_agent: navigator.userAgent
+      };
+
+      await supabase.from('visitas').insert([visitaData]);
+    } catch (error) {
+      console.error('Error al registrar visita:', error);
+    }
+  };
+
+  // Registrar visita cuando cambia la ubicación
+  useEffect(() => {
+    registrarVisita(location.pathname);
+  }, [location.pathname]);
+
   return (
     <>
       <TopBanner />
