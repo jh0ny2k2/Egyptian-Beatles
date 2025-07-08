@@ -4,14 +4,7 @@ import { useAuth } from './AuthContext';
 
 const CartContext = createContext();
 
-export const useCart = () => {
-  const context = useContext(CartContext);
-  if (!context) {
-    throw new Error('useCart debe ser usado dentro de CartProvider');
-  }
-  return context;
-};
-
+// Exportamos solo el componente CartProvider desde este archivo
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -63,14 +56,24 @@ export const CartProvider = ({ children }) => {
   // Guardar carrito cuando cambie (solo si no está cargando)
   // Este useEffect se ejecuta cada vez que cambia cartItems
   useEffect(() => {
-    if (!isLoading && cartItems.length >= 0) {
+    const syncCart = async () => {
+      if (isLoading) return;
+      
+      // Guardar en localStorage siempre
       localStorage.setItem('cartItems', JSON.stringify(cartItems));
       
       // Si hay usuario, también guardar en base de datos
       if (user?.id) {
-        saveCartToDatabase(cartItems, user.id); // 👈 Esto se ejecuta automáticamente
+        try {
+          await saveCartToDatabase(cartItems, user.id);
+          console.log('Carrito sincronizado con la base de datos');
+        } catch (error) {
+          console.error('Error al sincronizar el carrito:', error);
+        }
       }
-    }
+    };
+    
+    syncCart();
   }, [cartItems, user, isLoading]);
 
   const addToCart = (product, quantity = 1) => {
@@ -90,12 +93,18 @@ export const CartProvider = ({ children }) => {
   };
 
   const removeFromCart = (productId) => {
-    console.log('Eliminando producto:', productId); // 👈 Agrega esto
-    console.log('Carrito antes:', cartItems); // 👈 Y esto
+    console.log('Eliminando producto:', productId);
+    console.log('Carrito antes:', cartItems);
+    
+    // Asegurarse de que productId sea un valor válido
+    if (!productId) {
+      console.error('ID de producto inválido:', productId);
+      return;
+    }
     
     setCartItems(prevItems => {
       const newItems = prevItems.filter(item => item.id !== productId);
-      console.log('Carrito después:', newItems); // 👈 Y esto
+      console.log('Carrito después:', newItems);
       return newItems;
     });
   };
@@ -154,23 +163,30 @@ export const CartProvider = ({ children }) => {
   );
 };
 
+// Exportamos el hook useCart desde aquí para que esté disponible
+export const useCart = () => {
+  const context = useContext(CartContext);
+  if (!context) {
+    throw new Error('useCart debe ser usado dentro de CartProvider');
+  }
+  return context;
+};
 
-// Para usuarios no autenticados: localStorage
-// Para usuarios autenticados: base de datos + localStorage como backup
-
+// Funciones auxiliares
 const saveCartToDatabase = async (cartItems, userId) => {
+  // Implementación mejorada que devuelve promesas
   if (!userId) {
     console.log('No userId provided, skipping database save');
-    return;
+    return Promise.resolve();
   }
   
   if (!Array.isArray(cartItems)) {
     console.error('cartItems is not an array:', cartItems);
-    return;
+    return Promise.reject(new Error('cartItems is not an array'));
   }
 
   try {
-    console.log('Saving to database:', { userId, cartItems }); // Debug
+    console.log('Saving to database:', { userId, cartItems });
     
     const { data, error } = await supabase
       .from('user_carts')
@@ -184,15 +200,14 @@ const saveCartToDatabase = async (cartItems, userId) => {
     
     if (error) {
       console.error('Supabase error details:', error);
-      console.error('Error code:', error.code);
-      console.error('Error message:', error.message);
+      return Promise.reject(error);
     } else {
       console.log('Cart saved successfully to database');
+      return Promise.resolve(data);
     }
   } catch (error) {
     console.error('Catch block error:', error);
-    console.error('Error type:', typeof error);
-    console.error('Error details:', JSON.stringify(error, null, 2));
+    return Promise.reject(error);
   }
 };
 
