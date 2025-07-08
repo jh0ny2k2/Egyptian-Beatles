@@ -11,6 +11,9 @@ import ProductDetail from './components/ProductDetail';
 import Login from "./components/Login";
 import Registro from "./components/Registro";
 import Perfil from './components/Perfil';
+// Importamos los nuevos componentes
+import Sostenibilidad from './components/Sostenibilidad';
+import Contacto from './components/Contacto';
 
 function App() {
   return (
@@ -30,6 +33,9 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/registro" element={<Registro />} />
         <Route path="/perfil" element={<Perfil />} />
+        {/* Reemplazamos las rutas de AboutUs con las nuevas rutas específicas */}
+        <Route path="/sostenibilidad" element={<Sostenibilidad />} />
+        <Route path="/contacto" element={<Contacto />} />
       </Routes>
       <Footer />
     </>

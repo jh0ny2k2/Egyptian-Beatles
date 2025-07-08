@@ -1,22 +1,56 @@
 import React, { useState } from 'react'
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 
 const menuItems = [
   { label: 'Mujer', sub: ['Vestidos', 'Tops', 'Pantalones', 'Faldas', 'Abrigos', 'Zapatos', 'Accesorios'] },
   { label: 'Hombre', sub: ['Camisetas', 'Camisas', 'Pantalones', 'Chaquetas', 'Zapatos', 'Accesorios'] },
-  { label: 'Sale' },
-  { label: 'Novedades' },
-  { label: 'Nosotros', sub: ['Tiendas', 'Sostenibilidad', 'Contacto'] }
+  { label: 'Sale', badge: 'SALE' },
+  { label: 'Novedades', badge: 'NUEVO' },
+  { label: 'Nosotros', sub: ['Sostenibilidad', 'Contacto'] }
 ]
 
 function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [submenu, setSubmenu] = useState(null)
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
   const { user, isLoggedIn } = useAuth();
   const { cartItems, isCartOpen, toggleCart, removeFromCart, updateQuantity, getCartTotal, getCartItemsCount } = useCart();
+  const navigate = useNavigate();
+
+  // Función para manejar la navegación a productos con categoría
+  const handleCategoryClick = (category) => {
+    navigate(`/productos?category=${category}`);
+    setMenuOpen(false);
+    setSubmenu(null);
+  };
+
+  // Función para manejar la navegación a productos con badge
+  const handleBadgeClick = (badge) => {
+    navigate(`/productos?badge=${badge}`);
+    setMenuOpen(false);
+    setSubmenu(null);
+  };
+
+  // Actualizamos la función para manejar la navegación a las secciones de Nosotros
+  const handleAboutClick = (section) => {
+    // Ahora navegamos directamente a la ruta correspondiente
+    navigate(`/${section.toLowerCase()}`);
+    setMenuOpen(false);
+    setSubmenu(null);
+  };
+
+  // Función para manejar la búsqueda
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchInput.trim()) {
+      navigate(`/productos?search=${searchInput}`);
+      setSearchOpen(false);
+      setSearchInput('');
+    }
+  };
 
   return (
     <header className="bg-white shadow-md sticky top-0 z-50">
@@ -185,12 +219,22 @@ function Header() {
                 </svg>
               </button>
             </div>
-            <input
-              type="text"
-              placeholder="¿Qué estás buscando?"
-              className="w-full text-xl py-4 border-b-2 border-gray-300 focus:border-black focus:outline-none"
-              autoFocus
-            />
+            <form onSubmit={handleSearch}>
+              <input
+                type="text"
+                placeholder="¿Qué estás buscando?"
+                className="w-full text-xl py-4 border-b-2 border-gray-300 focus:border-black focus:outline-none"
+                autoFocus
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+              />
+              <button 
+                type="submit" 
+                className="mt-4 bg-black text-white px-6 py-2 rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                Buscar
+              </button>
+            </form>
           </div>
         </div>
       )}
@@ -213,7 +257,17 @@ function Header() {
                   <button
                     key={item.label}
                     className="w-full flex items-center justify-between text-left text-lg font-medium py-2 px-2 rounded hover:bg-gray-100 focus:outline-none"
-                    onClick={() => item.sub ? setSubmenu(idx) : setMenuOpen(false)}
+                    onClick={() => {
+                      if (item.sub) {
+                        setSubmenu(idx);
+                      } else if (item.badge) {
+                        // Para elementos con badge, navegar usando el badge
+                        handleBadgeClick(item.badge);
+                      } else {
+                        // Para otros elementos sin submenú ni badge
+                        setMenuOpen(false);
+                      }
+                    }}
                   >
                     <span>{item.label}</span>
                     {item.sub && (
@@ -231,8 +285,22 @@ function Header() {
                     </svg>
                     Volver
                   </button>
+                  
                   {menuItems[submenu].sub.map((subitem) => (
-                    <a key={subitem} href="#" className="text-base py-1 px-2 rounded hover:bg-gray-100 block">{subitem}</a>
+                    <button 
+                      key={subitem} 
+                      className="text-base py-1 px-2 rounded hover:bg-gray-100 block text-left w-full"
+                      onClick={() => {
+                        // Si estamos en el submenú de Nosotros (que es el índice 4 en menuItems)
+                        if (submenu === 4) {
+                          handleAboutClick(subitem);
+                        } else {
+                          handleCategoryClick(subitem);
+                        }
+                      }}
+                    >
+                      {subitem}
+                    </button>
                   ))}
                 </>
               )}

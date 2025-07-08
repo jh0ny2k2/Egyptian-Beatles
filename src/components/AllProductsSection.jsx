@@ -25,9 +25,34 @@ const AllProductsSection = () => {
   }, []);
 
   useEffect(() => {
+    // Obtener parámetros de la URL
     const urlSearchTerm = searchParams.get('search') || '';
+    const urlCategory = searchParams.get('category') || '';
+    const urlBadge = searchParams.get('badge') || '';
+    
+    // Establecer término de búsqueda
     setSearchTerm(urlSearchTerm);
-  }, [searchParams]);
+    
+    // Establecer categoría si existe en la URL
+    if (urlCategory) {
+      setFilters(prev => ({
+        ...prev,
+        categories: [urlCategory]
+      }));
+    }
+
+    // Filtrar por badge si existe en la URL
+    if (urlBadge) {
+      // Aquí puedes implementar la lógica para filtrar por badge
+      // Por ejemplo, podrías añadir un nuevo estado para badges o usar el existente
+      // Esto dependerá de cómo estén estructurados tus datos de productos
+      console.log(`Filtrando por badge: ${urlBadge}`);
+      
+      // Ejemplo: filtrar productos que tengan el badge especificado
+      const filteredByBadge = products.filter(product => product.badge === urlBadge);
+      setFilteredProducts(filteredByBadge);
+    }
+  }, [searchParams, products]);
 
   useEffect(() => {
     filterProducts();
