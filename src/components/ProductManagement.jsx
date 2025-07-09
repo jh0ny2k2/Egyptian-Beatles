@@ -8,6 +8,7 @@ function ProductManagement() {
   const [showForm, setShowForm] = useState(false);
   const [currentProduct, setCurrentProduct] = useState(null);
   const [uploading, setUploading] = useState(false);
+  // En el estado inicial del formulario
   const [formData, setFormData] = useState({
     nombre: '',
     precio: '',
@@ -18,8 +19,8 @@ function ProductManagement() {
     imagen1: '',
     badge: '',
     stock: 0,
-    tallas: [],
-    colores: []
+    sizes: [], // Usar 'sizes' consistentemente
+    colors: [] // Usar 'colors' consistentemente
   });
   const [imageFiles, setImageFiles] = useState({
     imagen: null,
@@ -133,42 +134,30 @@ function ProductManagement() {
     }
   };
 
-  // Función para editar un producto
+  // Función para editar un producto - CORREGIDA
   const handleEdit = (product) => {
-    setCurrentProduct(product);
-    setFormData({
-      nombre: product.nombre || '',
-      precio: product.price || '',
-      precio_original: product.precio_original || '',
-      descripcion: product.descripcion || '',
-      categoria: product.category || '',
-      imagen: product.imagen || '',
-      imagen1: product.imagen1 || '',
-      badge: product.badge || '',
-      stock: product.stock || '',
-      tallas: product.sizes || [],
-      colores: product.colors || []
-    });
-    
-    // Establecer previews de imágenes existentes
-    setImagePreviews({
-      imagen: product.imagen || '',
-      imagen1: product.imagen1 || ''
-    });
-    
-    // Limpiar archivos seleccionados
-    setImageFiles({
-      imagen: null,
-      imagen1: null
-    });
-    
-    setShowForm(true);
-  };
+  setCurrentProduct(product); // Cambiar de setEditingId a setCurrentProduct
+  setFormData({
+    nombre: product.nombre || '',
+    precio: product.price || '',
+    precio_original: product.precio_original || '',
+    descripcion: product.descripcion || '',
+    categoria: product.category || '',
+    imagen: product.imagen || '',
+    imagen1: product.imagen1 || '',
+    badge: product.badge || '',
+    stock: product.stock || 0,
+    sizes: product.sizes || [], // Usar 'sizes'
+    colors: product.colors || [] // Usar 'colors'
+  });
+  setShowForm(true);
+};
 
-  // Función para crear un nuevo producto
+  // Función para crear un nuevo producto - CORREGIDA
   const handleNew = () => {
-    setCurrentProduct(null);
+    setCurrentProduct(null); // Importante: limpiar currentProduct
     setFormData({
+      // NO incluir 'id' aquí
       nombre: '',
       precio: '',
       precio_original: '',
@@ -178,8 +167,8 @@ function ProductManagement() {
       imagen1: '',
       badge: '',
       stock: 0,
-      tallas: [],
-      colores: []
+      sizes: [],
+      colors: []
     });
     setImageFiles({
       imagen: null,
@@ -193,78 +182,82 @@ function ProductManagement() {
   };
 
   // Función para enviar el formulario
+  // Modificar la función handleSubmit
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setUploading(true);
+  e.preventDefault();
+  setLoading(true);
+  setUploading(true);
 
-    try {
-      // Validar campos obligatorios
-      if (!formData.nombre || !formData.precio || !formData.categoria) {
-        alert('Por favor, completa los campos obligatorios: nombre, precio y categoría');
-        setLoading(false);
-        setUploading(false);
-        return;
-      }
+  try {
+  // Validar campos obligatorios
+  if (!formData.nombre || !formData.precio || !formData.categoria) {
+  alert('Por favor, completa los campos obligatorios: nombre, precio y categoría');
+  setLoading(false);
+  setUploading(false);
+  return;
+  }
 
-      let imagenUrl = formData.imagen;
-      let imagen1Url = formData.imagen1;
+  let imagenUrl = formData.imagen;
+  let imagen1Url = formData.imagen1;
 
-      // Subir imagen principal si se seleccionó una nueva
-      if (imageFiles.imagen) {
-        const fileName = `${Date.now()}_${formData.nombre.replace(/\s+/g, '_')}_principal`;
-        imagenUrl = await uploadImage(imageFiles.imagen, fileName);
-      }
+  // Subir imagen principal si se seleccionó una nueva
+  if (imageFiles.imagen) {
+  const fileName = `${Date.now()}_${formData.nombre.replace(/\s+/g, '_')}_principal`;
+  imagenUrl = await uploadImage(imageFiles.imagen, fileName);
+  }
 
-      // Subir imagen adicional si se seleccionó una nueva
-      if (imageFiles.imagen1) {
-        const fileName = `${Date.now()}_${formData.nombre.replace(/\s+/g, '_')}_adicional`;
-        imagen1Url = await uploadImage(imageFiles.imagen1, fileName);
-      }
+  // Subir imagen adicional si se seleccionó una nueva
+  if (imageFiles.imagen1) {
+  const fileName = `${Date.now()}_${formData.nombre.replace(/\s+/g, '_')}_adicional`;
+  imagen1Url = await uploadImage(imageFiles.imagen1, fileName);
+  }
 
-      // Preparar datos para guardar
-      const productData = {
-        nombre: formData.nombre,
-        precio: formData.precio,
-        precio_original: formData.precio_original || null,
-        descripcion: formData.descripcion || null,
-        categoria: formData.categoria,
-        imagen: imagenUrl || null,
-        imagen1: imagen1Url || null,
-        badge: formData.badge || null,
-        stock: formData.stock || 0,
-        tallas: formData.tallas || [],
-        colores: formData.colores || []
-      };
+  // Preparar datos para guardar
+  const productData = {
+  nombre: formData.nombre,
+  price: formData.precio,
+  precio_original: formData.precio_original || null,
+  descripcion: formData.descripcion || null,
+  category: formData.categoria,
+  imagen: imagenUrl || null,
+  imagen1: imagen1Url || null,
+  badge: formData.badge || null,
+  stock: formData.stock || 0,
+  sizes: formData.sizes || [],
+  colors: formData.colors || []
+  };
 
-      let result;
+  let result;
 
-      if (currentProduct) {
-        // Actualizar producto existente
-        result = await supabase
-          .from('productos')
-          .update(productData)
-          .eq('id', currentProduct.id);
-      } else {
-        // Crear nuevo producto
-        result = await supabase
-          .from('productos')
-          .insert([productData]);
-      }
+  if (currentProduct) {
+  // Actualizar producto existente
+  result = await supabase
+  .from('productos')
+  .update(productData)
+  .eq('id', currentProduct.id);
+  } else {
+  // Crear nuevo producto - obtener el siguiente ID
+  const nextId = await getNextId();
+  productData.id = nextId; // Asignar el ID manualmente
+  
+  result = await supabase
+  .from('productos')
+  .insert([productData]);
+  }
 
-      if (result.error) throw result.error;
+  if (result.error) throw result.error;
 
-      // Actualizar la lista de productos
-      fetchProducts();
-      setShowForm(false);
-      alert(currentProduct ? 'Producto actualizado correctamente' : 'Producto creado correctamente');
-    } catch (error) {
-      console.error('Error al guardar el producto:', error);
-      alert('Error al guardar el producto: ' + error.message);
-    } finally {
-      setLoading(false);
-      setUploading(false);
-    }
+  // Actualizar la lista de productos
+  fetchProducts();
+  setShowForm(false);
+  alert(currentProduct ? 'Producto actualizado correctamente' : 'Producto creado correctamente');
+  } catch (error) {
+  console.error('Error al guardar el producto:', error);
+  alert('Error al guardar el producto: ' + error.message);
+  } finally {
+  setLoading(false);
+  setUploading(false);
+  }
   };
 
   // Función para eliminar un producto
@@ -396,21 +389,28 @@ function ProductManagement() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tallas (separadas por comas)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tallas (separadas por comas)
+                </label>
                 <input
                   type="text"
-                  value={formData.tallas.join(', ')}
-                  onChange={(e) => handleArrayChange(e, 'tallas')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  value={Array.isArray(formData.sizes) ? formData.sizes.join(', ') : ''}
+                  onChange={(e) => handleArrayChange(e, 'sizes')} // Cambiar de 'tallas' a 'sizes'
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="S, M, L, XL"
                 />
               </div>
+              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Colores (separados por comas)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Colores (separados por comas)
+                </label>
                 <input
                   type="text"
-                  value={formData.colores.join(', ')}
-                  onChange={(e) => handleArrayChange(e, 'colores')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  value={Array.isArray(formData.colors) ? formData.colors.join(', ') : ''}
+                  onChange={(e) => handleArrayChange(e, 'colors')} // Cambiar de 'colores' a 'colors'
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Rojo, Azul, Verde"
                 />
               </div>
             </div>
@@ -487,9 +487,15 @@ function ProductManagement() {
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.nombre}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.category}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.price}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.stock || 0}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {product.category}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {product.price}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {product.stock}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <button
                       onClick={() => handleEdit(product)}
@@ -515,3 +521,28 @@ function ProductManagement() {
 }
 
 export default ProductManagement;
+
+// Función para obtener el siguiente ID disponible
+const getNextId = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('productos')
+      .select('id')
+      .order('id', { ascending: false })
+      .limit(1);
+    
+    if (error) throw error;
+    
+    // Si no hay productos, empezar desde 1
+    if (!data || data.length === 0) {
+      return 1;
+    }
+    
+    // Retornar el último ID + 1
+    return data[0].id + 1;
+  } catch (error) {
+    console.error('Error al obtener el siguiente ID:', error);
+    // En caso de error, generar un ID basado en timestamp
+    return Date.now();
+  }
+};

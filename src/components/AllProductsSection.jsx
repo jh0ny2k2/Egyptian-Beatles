@@ -183,26 +183,16 @@ const AllProductsSection = () => {
     e.target.src = 'https://via.placeholder.com/400x400?text=Imagen+no+disponible';
   };
 
-  const handleAddToCart = (product, e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // Verificar si el producto tiene variaciones (tallas o colores)
-    // Verificar tanto los nombres en español como en inglés por compatibilidad
-    const hasSizes = (product.tallas && product.tallas.length > 0) || (product.sizes && product.sizes.length > 0);
-    const hasColors = (product.colores && product.colores.length > 0) || (product.colors && product.colors.length > 0);
-    
-    console.log('Producto:', product.nombre);
-    console.log('Tallas:', product.tallas, 'Sizes:', product.sizes);
-    console.log('Colores:', product.colores, 'Colors:', product.colors);
-    console.log('Has sizes:', hasSizes, 'Has colors:', hasColors);
-    
-    if (hasSizes || hasColors) {
-      // Abrir modal para seleccionar variaciones
-      setSelectedProduct(product);
-      setModalOpen(true);
-    } else {
-      // Añadir directamente al carrito si no hay variaciones
+  // En la función handleAddToCart
+  const handleAddToCart = (product) => {
+  // Verificar si el producto tiene variaciones (tallas o colores)
+  const hasVariations = (product.sizes && product.sizes.length > 0) || 
+                       (product.colors && product.colors.length > 0);
+  
+  if (hasVariations) {
+    setSelectedProduct(product);
+    setModalOpen(true);
+  } else {
       addToCart({
         id: product.id,
         name: product.nombre,

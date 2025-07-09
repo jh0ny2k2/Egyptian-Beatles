@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import bcrypt from 'bcryptjs';
 
 function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -7,11 +8,13 @@ function UserManagement() {
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  // Modificar el estado inicial del formulario para incluir contraseña
   const [formData, setFormData] = useState({
     nombre: '',
     email: '',
     telefono: '',
-    role: 'user'
+    role: 'user',
+    password: '' // Nuevo campo
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -49,6 +52,8 @@ function UserManagement() {
     });
   };
 
+  // Modificar la función handleSubmit para incluir la creación de usuarios
+  // Modificar handleSubmit para hashear las contraseñas
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -58,18 +63,63 @@ function UserManagement() {
       if (!formData.email || !/\S+@\S+\.\S+/.test(formData.email)) {
         throw new Error('Email inválido');
       }
+      
+      // Verificar si el email ya existe
+      const emailExists = await checkEmailExists(formData.email, currentUser?.id);
+      if (emailExists) {
+        throw new Error('Ya existe un usuario con este email');
+      }
+
+      // Validar nombre
+      if (!formData.nombre || formData.nombre.trim().length < 2) {
+        throw new Error('El nombre debe tener al menos 2 caracteres');
+      }
+
+      // Validar contraseña (solo para nuevos usuarios o si se proporciona)
+      if (!currentUser && (!formData.password || formData.password.length < 6)) {
+        throw new Error('La contraseña debe tener al menos 6 caracteres');
+      }
+      
+      if (currentUser && formData.password && formData.password.length < 6) {
+        throw new Error('La contraseña debe tener al menos 6 caracteres');
+      }
 
       // Si estamos editando un usuario existente
       if (currentUser) {
+        const updateData = {
+          nombre: formData.nombre,
+          email: formData.email,
+          telefono: formData.telefono,
+          role: formData.role
+        };
+        
+        // Solo actualizar contraseña si se proporciona (y hashearla)
+        if (formData.password) {
+          const saltRounds = 10;
+          updateData.password = await bcrypt.hash(formData.password, saltRounds);
+        }
+        
         const { error } = await supabase
           .from('usuarios')
-          .update({
+          .update(updateData)
+          .eq('id', currentUser.id);
+
+        if (error) throw error;
+      } else {
+        // Crear nuevo usuario
+        const nextId = await getNextUserId();
+        
+        const { error } = await supabase
+          .from('usuarios')
+          .insert([{
+            id: nextId,
             nombre: formData.nombre,
             email: formData.email,
-            telefono: formData.telefono,
-            role: formData.role
-          })
-          .eq('id', currentUser.id);
+            telefono: formData.telefono || null,
+            role: formData.role,
+            password: hashedPassword, // Usar contraseña hasheada
+            fechaNacimiento: null
+          }]);
 
         if (error) throw error;
       }
@@ -77,6 +127,10 @@ function UserManagement() {
       // Actualizar la lista de usuarios
       fetchUsers();
       resetForm();
+      
+      // Mostrar mensaje de éxito
+      alert(currentUser ? 'Usuario actualizado correctamente' : 'Usuario creado correctamente');
+      
     } catch (error) {
       console.error('Error:', error);
       setError(error.message);
@@ -85,13 +139,15 @@ function UserManagement() {
     }
   };
 
+  // Modificar handleEdit para incluir contraseña (vacía por seguridad)
   const handleEdit = (user) => {
     setCurrentUser(user);
     setFormData({
       nombre: user.nombre,
       email: user.email,
       telefono: user.telefono || '',
-      role: user.role || 'user'
+      role: user.role || 'user',
+      password: '' // Dejar vacío por seguridad
     });
     setShowForm(true);
   };
@@ -130,13 +186,15 @@ function UserManagement() {
     }
   };
 
+  // Modificar resetForm para incluir contraseña
   const resetForm = () => {
     setCurrentUser(null);
     setFormData({
       nombre: '',
       email: '',
       telefono: '',
-      role: 'user'
+      role: 'user',
+      password: '' // Incluir contraseña
     });
     setShowForm(false);
   };
@@ -258,6 +316,20 @@ function UserManagement() {
                   <option value="admin">Administrador</option>
                 </select>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Contraseña {currentUser ? '(dejar vacío para mantener actual)' : ''}
+                </label>
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+                  placeholder={currentUser ? 'Nueva contraseña (opcional)' : 'Contraseña'}
+                  required={!currentUser} // Requerido solo para nuevos usuarios
+                />
+              </div>
             </div>
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 mt-4">
               <button
@@ -303,7 +375,6 @@ function UserManagement() {
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Teléfono</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rol</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
@@ -408,3 +479,52 @@ function UserManagement() {
 }
 
 export default UserManagement;
+
+// Función para obtener el siguiente ID disponible
+const getNextUserId = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('usuarios')
+      .select('id')
+      .order('id', { ascending: false })
+      .limit(1);
+    
+    if (error) throw error;
+    
+    // Si no hay usuarios, empezar desde 1
+    if (!data || data.length === 0) {
+      return 1;
+    }
+    
+    // Retornar el último ID + 1
+    return data[0].id + 1;
+  } catch (error) {
+    console.error('Error al obtener el siguiente ID:', error);
+    // En caso de error, generar un ID basado en timestamp
+    return Date.now();
+  }
+};
+
+// Función para verificar si el email ya existe
+const checkEmailExists = async (email, excludeId = null) => {
+  try {
+    let query = supabase
+      .from('usuarios')
+      .select('id')
+      .eq('email', email);
+    
+    // Si estamos editando, excluir el ID actual
+    if (excludeId) {
+      query = query.neq('id', excludeId);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) throw error;
+    
+    return data && data.length > 0;
+  } catch (error) {
+    console.error('Error al verificar email:', error);
+    return false;
+  }
+};
