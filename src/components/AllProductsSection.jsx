@@ -183,26 +183,25 @@ const AllProductsSection = () => {
     e.target.src = 'https://via.placeholder.com/400x400?text=Imagen+no+disponible';
   };
 
-  // En la función handleAddToCart
   const handleAddToCart = (product) => {
-  // Verificar si el producto tiene variaciones (tallas o colores)
-  const hasVariations = (product.sizes && product.sizes.length > 0) || 
-                       (product.colors && product.colors.length > 0);
-  
-  if (hasVariations) {
-    setSelectedProduct(product);
-    setModalOpen(true);
-  } else {
-      addToCart({
-        id: product.id,
-        name: product.nombre,
-        price: product.price,
-        image: product.imagen,
-        category: product.category,
-        quantity: 1
-      });
-    }
-  };
+    // Verificar si el producto tiene variaciones (tallas o colores)
+    const hasVariations = (product.sizes && product.sizes.length > 0) || 
+                         (product.colors && product.colors.length > 0);
+    
+    if (hasVariations) {
+      setSelectedProduct(product);
+      setModalOpen(true);
+    } else {
+        addToCart({
+          id: product.id,
+          name: product.nombre,
+          price: product.price,
+          image: product.imagen,
+          category: product.category,
+          quantity: 1
+        });
+      }
+    };
 
   const handleModalAddToCart = (productWithVariations) => {
     addToCart({

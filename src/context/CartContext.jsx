@@ -15,8 +15,8 @@ export const CartProvider = ({ children }) => {
   // En el useEffect de carga del carrito
   useEffect(() => {
     const loadCart = async () => {
-      console.log('Usuario completo:', user); // 👈 Agrega esto
-      console.log('user.id:', user?.id); // 👈 Y esto
+      console.log('Usuario completo:', user);
+      console.log('user.id:', user?.id);
       
       if (user?.id) {
         // Si hay usuario, cargar desde base de datos
@@ -48,6 +48,9 @@ export const CartProvider = ({ children }) => {
           }
         }
       }
+      
+      // ✅ AGREGAR ESTA LÍNEA - Establecer isLoading como false después de cargar
+      setIsLoading(false);
     };
     
     loadCart();
@@ -77,50 +80,84 @@ export const CartProvider = ({ children }) => {
   }, [cartItems, user, isLoading]);
 
   const addToCart = (product, quantity = 1) => {
+    // Normalizar el producto antes de añadirlo al carrito
+    const normalizedProduct = {
+      id: product.id,
+      name: product.name || product.nombre,
+      price: product.price || product.precio,
+      image: product.image || product.imagen,
+      category: product.category || product.categoria,
+      selectedSize: product.selectedSize,
+      selectedColor: product.selectedColor,
+      quantity: quantity
+    };
+
     setCartItems(prevItems => {
-      const existingItem = prevItems.find(item => item.id === product.id);
+      const existingItem = prevItems.find(item => 
+        item.id === normalizedProduct.id && 
+        item.selectedSize === normalizedProduct.selectedSize && 
+        item.selectedColor === normalizedProduct.selectedColor
+      );
       
       if (existingItem) {
         return prevItems.map(item =>
-          item.id === product.id
+          item.id === normalizedProduct.id && 
+          item.selectedSize === normalizedProduct.selectedSize && 
+          item.selectedColor === normalizedProduct.selectedColor
             ? { ...item, quantity: item.quantity + quantity }
             : item
         );
       } else {
-        return [...prevItems, { ...product, quantity }];
+        return [...prevItems, normalizedProduct];
       }
     });
   };
 
-  const removeFromCart = (productId) => {
-    console.log('Eliminando producto:', productId);
-    console.log('Carrito antes:', cartItems);
+  const removeFromCart = (productId, selectedSize = null, selectedColor = null) => {
+    console.log('Eliminando producto:', { productId, selectedSize, selectedColor });
     
-    // Asegurarse de que productId sea un valor válido
     if (!productId) {
       console.error('ID de producto inválido:', productId);
       return;
     }
     
     setCartItems(prevItems => {
-      const newItems = prevItems.filter(item => item.id !== productId);
+      const newItems = prevItems.filter(item => {
+        // Si no se especifican variaciones, eliminar por ID solamente
+        if (!selectedSize && !selectedColor) {
+          return item.id !== productId;
+        }
+        // Si se especifican variaciones, eliminar el item exacto
+        return !(
+          item.id === productId && 
+          item.selectedSize === selectedSize && 
+          item.selectedColor === selectedColor
+        );
+      });
       console.log('Carrito después:', newItems);
       return newItems;
     });
   };
 
-  const updateQuantity = (productId, quantity) => {
+  const updateQuantity = (productId, quantity, selectedSize = null, selectedColor = null) => {
     if (quantity <= 0) {
-      removeFromCart(productId);
+      removeFromCart(productId, selectedSize, selectedColor);
       return;
     }
     
     setCartItems(prevItems =>
-      prevItems.map(item =>
-        item.id === productId
-          ? { ...item, quantity }
-          : item
-      )
+      prevItems.map(item => {
+        // Si no se especifican variaciones, actualizar por ID solamente
+        if (!selectedSize && !selectedColor) {
+          return item.id === productId ? { ...item, quantity } : item;
+        }
+        // Si se especifican variaciones, actualizar el item exacto
+        return (
+          item.id === productId && 
+          item.selectedSize === selectedSize && 
+          item.selectedColor === selectedColor
+        ) ? { ...item, quantity } : item;
+      })
     );
   };
 
@@ -130,7 +167,20 @@ export const CartProvider = ({ children }) => {
 
   const getCartTotal = () => {
     return cartItems.reduce((total, item) => {
-      const price = parseFloat(item.price.replace('$', ''));
+      // Normalizar el precio eliminando símbolos de moneda y convirtiendo a número
+      let price = item.price;
+      if (typeof price === 'string') {
+        // Eliminar símbolos de moneda comunes y espacios
+        price = price.replace(/[$€£¥₹]/g, '').replace(/\s/g, '');
+        price = parseFloat(price);
+      }
+      
+      // Validar que el precio sea un número válido
+      if (isNaN(price) || price < 0) {
+        console.warn('Precio inválido para el producto:', item);
+        price = 0;
+      }
+      
       return total + (price * item.quantity);
     }, 0);
   };

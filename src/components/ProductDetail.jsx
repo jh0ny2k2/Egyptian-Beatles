@@ -45,7 +45,11 @@ const ProductDetail = () => {
   const handleAddToCart = () => {
     if (product) {
       addToCart({
-        ...product,
+        id: product.id,
+        name: product.nombre,
+        price: product.precio || product.price,
+        image: product.imagen,
+        category: product.category,
         selectedSize,
         selectedColor,
         quantity

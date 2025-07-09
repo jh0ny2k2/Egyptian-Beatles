@@ -209,8 +209,8 @@ function Header() {
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-6">
-                  {cartItems.map((item) => (
-                    <div key={item.id} className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
+                  {cartItems.map((item, index) => (
+                    <div key={`${item.id}-${item.selectedSize || 'no-size'}-${item.selectedColor || 'no-color'}-${index}`} className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
                       <img 
                         src={item.image || item.imagen} 
                         alt={item.name || item.nombre} 
@@ -219,18 +219,51 @@ function Header() {
                       <div className="flex-1">
                         <h3 className="font-semibold text-sm">{item.name || item.nombre}</h3>
                         <p className="text-gray-600 text-xs">{item.category}</p>
+                        {/* Mostrar variaciones seleccionadas */}
+                        {(item.selectedSize || item.selectedColor) && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            {item.selectedSize && <span>Talla: {item.selectedSize}</span>}
+                            {item.selectedSize && item.selectedColor && <span> | </span>}
+                            {item.selectedColor && <span>Color: {item.selectedColor}</span>}
+                          </div>
+                        )}
                         <div className="flex items-center justify-between mt-2">
-                          <span className="font-bold">{item.price}</span>
+                          <span className="font-bold">
+                            <span className="font-bold">
+                              {(() => {
+                                let price = item.price;
+                                
+                                // Si el precio ya es una cadena con símbolo de moneda, mostrarlo tal como está
+                                if (typeof price === 'string' && (price.includes('€') || price.includes('$'))) {
+                                  return price;
+                                }
+                                
+                                // Si es una cadena sin símbolo, limpiar y convertir a número
+                                if (typeof price === 'string') {
+                                  price = price.replace(/[€£¥₹]/g, '').replace(/\s/g, '');
+                                  price = parseFloat(price);
+                                }
+                                
+                                // Si es un número válido, formatear con símbolo de euro
+                                if (!isNaN(price) && price >= 0) {
+                                  return `€${price.toFixed(2)}`;
+                                }
+                                
+                                // Fallback si el precio no es válido
+                                return '€0.00';
+                              })()} 
+                            </span>
+                          </span>
                           <div className="flex items-center gap-2">
                             <button 
-                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                              onClick={() => updateQuantity(item.id, item.quantity - 1, item.selectedSize, item.selectedColor)}
                               className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center text-sm hover:bg-gray-100"
                             >
                               -
                             </button>
                             <span className="text-sm font-medium">{item.quantity}</span>
                             <button 
-                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                              onClick={() => updateQuantity(item.id, item.quantity + 1, item.selectedSize, item.selectedColor)}
                               className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center text-sm hover:bg-gray-100"
                             >
                               +
@@ -239,7 +272,7 @@ function Header() {
                         </div>
                       </div>
                       <button 
-                        onClick={() => removeFromCart(item.id)}
+                        onClick={() => removeFromCart(item.id, item.selectedSize, item.selectedColor)}
                         className="text-gray-400 hover:text-red-500 text-sm"
                       >
                         ×
@@ -251,7 +284,7 @@ function Header() {
                 <div className="p-6 border-t bg-gray-50">
                   <div className="flex justify-between items-center mb-4">
                     <span className="font-bold text-lg">Total:</span>
-                    <span className="font-bold text-xl">${getCartTotal().toFixed(2)}</span>
+                    <span className="font-bold text-xl">{getCartTotal().toFixed(2)}€</span>
                   </div>
                   <button className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-900 transition-colors mb-2">
                     Proceder al pago
