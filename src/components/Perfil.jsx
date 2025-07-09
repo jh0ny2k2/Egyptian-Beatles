@@ -574,34 +574,36 @@ function Perfil() {
           
           {/* Pestañas de navegación */}
           <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
+            <nav className="-mb-px flex flex-wrap sm:flex-nowrap overflow-x-auto scrollbar-hide">
               <button
                 onClick={() => setActiveTab('perfil')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'perfil' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                className={`py-3 px-3 sm:px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap flex-shrink-0 ${activeTab === 'perfil' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
               >
-                Datos Personales
+                <span className="hidden sm:inline">Datos Personales</span>
+                <span className="sm:hidden">Perfil</span>
               </button>
               <button
                 onClick={() => setActiveTab('pedidos')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'pedidos' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                className={`py-3 px-3 sm:px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap flex-shrink-0 ml-4 sm:ml-8 ${activeTab === 'pedidos' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
               >
-                Mis Pedidos
+                <span className="hidden sm:inline">Mis Pedidos</span>
+                <span className="sm:hidden">Pedidos</span>
               </button>
               <button
                 onClick={() => setActiveTab('direcciones')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'direcciones' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                className={`py-3 px-3 sm:px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap flex-shrink-0 ml-4 sm:ml-8 ${activeTab === 'direcciones' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
               >
                 Direcciones
               </button>
               <button
                 onClick={() => setActiveTab('preferencias')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'preferencias' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                className={`py-3 px-3 sm:px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap flex-shrink-0 ml-4 sm:ml-8 ${activeTab === 'preferencias' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
               >
                 Preferencias
               </button>
               <button
                 onClick={() => setActiveTab('seguridad')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'seguridad' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                className={`py-3 px-3 sm:px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap flex-shrink-0 ml-4 sm:ml-8 ${activeTab === 'seguridad' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
               >
                 Seguridad
               </button>

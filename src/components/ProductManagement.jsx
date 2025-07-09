@@ -1,549 +1,517 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
-function UserManagement() {
-  const [users, setUsers] = useState([]);
+function ProductManagement() {
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentProduct, setCurrentProduct] = useState(null);
+  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     nombre: '',
-    email: '',
-    telefono: '',
-    role: 'user'
+    precio: '',
+    precio_original: '',
+    descripcion: '',
+    categoria: '',
+    imagen: '',
+    imagen1: '',
+    badge: '',
+    stock: 0,
+    tallas: [],
+    colores: []
   });
-  const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const usersPerPage = 10;
-  // Estado para controlar la vista en móviles
-  const [viewMode, setViewMode] = useState('table'); // 'table' o 'cards'
+  const [imageFiles, setImageFiles] = useState({
+    imagen: null,
+    imagen1: null
+  });
+  const [imagePreviews, setImagePreviews] = useState({
+    imagen: '',
+    imagen1: ''
+  });
 
-  // Cargar usuarios al montar el componente
+  // Cargar productos al montar el componente
   useEffect(() => {
-    fetchUsers();
+    fetchProducts();
   }, []);
 
-  const fetchUsers = async () => {
+  // Función para obtener todos los productos
+  const fetchProducts = async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('usuarios')
-        .select('id, nombre, email, telefono, role, fechaNacimiento')
+        .from('productos')
+        .select('*')
         .order('id', { ascending: true });
 
       if (error) throw error;
 
-      setUsers(data || []);
+      setProducts(data || []);
     } catch (error) {
-      console.error('Error al cargar usuarios:', error);
-      setError('Error al cargar los usuarios');
+      console.error('Error al cargar productos:', error);
+      setError('Error al cargar los productos');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleInputChange = (e) => {
+  // Función para manejar cambios en el formulario
+  const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       [name]: value
-    });
+    }));
   };
 
+  // Función para manejar cambios en arrays (tallas, colores)
+  const handleArrayChange = (e, field) => {
+    const value = e.target.value.split(',').map(item => item.trim());
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Función para manejar la subida de archivos
+  const handleFileChange = (e, field) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validar tipo de archivo
+      if (!file.type.startsWith('image/')) {
+        alert('Por favor selecciona solo archivos de imagen');
+        return;
+      }
+      
+      // Validar tamaño (máximo 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('La imagen debe ser menor a 5MB');
+        return;
+      }
+
+      setImageFiles(prev => ({
+        ...prev,
+        [field]: file
+      }));
+
+      // Crear preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreviews(prev => ({
+          ...prev,
+          [field]: e.target.result
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Función para subir imagen a Supabase Storage
+  const uploadImage = async (file, fileName) => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `productos/${fileName}.${fileExt}`;
+
+      const { data, error } = await supabase.storage
+        .from('imagenes')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (error) throw error;
+
+      // Obtener URL pública
+      const { data: { publicUrl } } = supabase.storage
+        .from('imagenes')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error al subir imagen:', error);
+      throw error;
+    }
+  };
+
+  // Función para editar un producto
+  const handleEdit = (product) => {
+    setCurrentProduct(product);
+    setFormData({
+      nombre: product.nombre || '',
+      precio: product.price || '',
+      precio_original: product.precio_original || '',
+      descripcion: product.descripcion || '',
+      categoria: product.category || '',
+      imagen: product.imagen || '',
+      imagen1: product.imagen1 || '',
+      badge: product.badge || '',
+      stock: product.stock || '',
+      tallas: product.sizes || [],
+      colores: product.colors || []
+    });
+    
+    // Establecer previews de imágenes existentes
+    setImagePreviews({
+      imagen: product.imagen || '',
+      imagen1: product.imagen1 || ''
+    });
+    
+    // Limpiar archivos seleccionados
+    setImageFiles({
+      imagen: null,
+      imagen1: null
+    });
+    
+    setShowForm(true);
+  };
+
+  // Función para crear un nuevo producto
+  const handleNew = () => {
+    setCurrentProduct(null);
+    setFormData({
+      nombre: '',
+      precio: '',
+      precio_original: '',
+      descripcion: '',
+      categoria: '',
+      imagen: '',
+      imagen1: '',
+      badge: '',
+      stock: 0,
+      tallas: [],
+      colores: []
+    });
+    setImageFiles({
+      imagen: null,
+      imagen1: null
+    });
+    setImagePreviews({
+      imagen: '',
+      imagen1: ''
+    });
+    setShowForm(true);
+  };
+
+  // Función para enviar el formulario
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setUploading(true);
 
     try {
-      // Validar email
-      if (!formData.email || !/\S+@\S+\.\S+/.test(formData.email)) {
-        throw new Error('Email inválido');
+      // Validar campos obligatorios
+      if (!formData.nombre || !formData.precio || !formData.categoria) {
+        alert('Por favor, completa los campos obligatorios: nombre, precio y categoría');
+        setLoading(false);
+        setUploading(false);
+        return;
       }
 
-      // Si estamos editando un usuario existente
-      if (currentUser) {
-        const { error } = await supabase
-          .from('usuarios')
-          .update({
-            nombre: formData.nombre,
-            email: formData.email,
-            telefono: formData.telefono,
-            role: formData.role
-          })
-          .eq('id', currentUser.id);
+      let imagenUrl = formData.imagen;
+      let imagen1Url = formData.imagen1;
 
-        if (error) throw error;
+      // Subir imagen principal si se seleccionó una nueva
+      if (imageFiles.imagen) {
+        const fileName = `${Date.now()}_${formData.nombre.replace(/\s+/g, '_')}_principal`;
+        imagenUrl = await uploadImage(imageFiles.imagen, fileName);
       }
 
-      // Actualizar la lista de usuarios
-      fetchUsers();
-      resetForm();
+      // Subir imagen adicional si se seleccionó una nueva
+      if (imageFiles.imagen1) {
+        const fileName = `${Date.now()}_${formData.nombre.replace(/\s+/g, '_')}_adicional`;
+        imagen1Url = await uploadImage(imageFiles.imagen1, fileName);
+      }
+
+      // Preparar datos para guardar
+      const productData = {
+        nombre: formData.nombre,
+        precio: formData.precio,
+        precio_original: formData.precio_original || null,
+        descripcion: formData.descripcion || null,
+        categoria: formData.categoria,
+        imagen: imagenUrl || null,
+        imagen1: imagen1Url || null,
+        badge: formData.badge || null,
+        stock: formData.stock || 0,
+        tallas: formData.tallas || [],
+        colores: formData.colores || []
+      };
+
+      let result;
+
+      if (currentProduct) {
+        // Actualizar producto existente
+        result = await supabase
+          .from('productos')
+          .update(productData)
+          .eq('id', currentProduct.id);
+      } else {
+        // Crear nuevo producto
+        result = await supabase
+          .from('productos')
+          .insert([productData]);
+      }
+
+      if (result.error) throw result.error;
+
+      // Actualizar la lista de productos
+      fetchProducts();
+      setShowForm(false);
+      alert(currentProduct ? 'Producto actualizado correctamente' : 'Producto creado correctamente');
     } catch (error) {
-      console.error('Error:', error);
-      setError(error.message);
+      console.error('Error al guardar el producto:', error);
+      alert('Error al guardar el producto: ' + error.message);
     } finally {
       setLoading(false);
+      setUploading(false);
     }
   };
 
-  const handleEdit = (user) => {
-    setCurrentUser(user);
-    setFormData({
-      nombre: user.nombre,
-      email: user.email,
-      telefono: user.telefono || '',
-      role: user.role || 'user'
-    });
-    setShowForm(true);
-    // Scroll al formulario en dispositivos móviles
-    if (window.innerWidth < 768) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
-
+  // Función para eliminar un producto
   const handleDelete = async (id) => {
-    if (!window.confirm('¿Estás seguro de que deseas eliminar este usuario? Esta acción no se puede deshacer.')) {
-      return;
-    }
-
-    setLoading(true);
-
+    if (!confirm('¿Estás seguro de que deseas eliminar este producto?')) return;
+    
     try {
-      // Primero eliminar las direcciones asociadas al usuario
-      const { error: dirError } = await supabase
-        .from('direcciones')
-        .delete()
-        .eq('user_id', id);
-
-      if (dirError) throw dirError;
-
-      // Luego eliminar el usuario
+      setLoading(true);
       const { error } = await supabase
-        .from('usuarios')
+        .from('productos')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
 
-      // Actualizar la lista de usuarios
-      fetchUsers();
+      // Actualizar la lista de productos
+      setProducts(products.filter(product => product.id !== id));
+      alert('Producto eliminado correctamente');
     } catch (error) {
-      console.error('Error al eliminar usuario:', error);
-      setError('Error al eliminar el usuario');
+      console.error('Error al eliminar el producto:', error);
+      alert('Error al eliminar el producto');
     } finally {
       setLoading(false);
     }
   };
 
-  const resetForm = () => {
-    setCurrentUser(null);
-    setFormData({
-      nombre: '',
-      email: '',
-      telefono: '',
-      role: 'user'
-    });
-    setShowForm(false);
-  };
-
-  // Filtrar usuarios según el término de búsqueda
-  const filteredUsers = users.filter(user => 
-    user.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // Paginación
-  const indexOfLastUser = currentPage * usersPerPage;
-  const indexOfFirstUser = indexOfLastUser - usersPerPage;
-  const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
-  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
-
-  // Renderizar tarjeta de usuario para vista móvil
-  const renderUserCard = (user) => (
-    <div key={user.id} className="bg-white p-4 rounded-lg shadow-md border border-gray-200 mb-4 animate-fadeIn">
-      <div className="flex items-center mb-3">
-        <div className="flex-shrink-0 h-12 w-12 bg-gray-200 rounded-full flex items-center justify-center mr-3">
-          <span className="text-lg font-medium text-gray-500">{user.nombre?.charAt(0).toUpperCase() || '?'}</span>
-        </div>
-        <div>
-          <h3 className="text-lg font-medium text-gray-900">{user.nombre}</h3>
-          <p className="text-sm text-gray-500">{user.email}</p>
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-2 gap-2 mb-3 text-sm">
-        <div>
-          <span className="font-medium">ID:</span> {user.id}
-        </div>
-        <div>
-          <span className="font-medium">Teléfono:</span> {user.telefono || '-'}
-        </div>
-        <div className="col-span-2">
-          <span className="font-medium">Rol:</span> 
-          <span className={`ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}`}>
-            {user.role === 'admin' ? 'Administrador' : 'Usuario'}
-          </span>
-        </div>
-      </div>
-      
-      <div className="flex justify-between mt-3 pt-3 border-t border-gray-200">
-        <button
-          onClick={() => handleEdit(user)}
-          className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-md text-sm font-medium hover:bg-indigo-200 transition-colors"
-        >
-          Editar
-        </button>
-        <button
-          onClick={() => handleDelete(user.id)}
-          className="bg-red-100 text-red-700 px-3 py-1 rounded-md text-sm font-medium hover:bg-red-200 transition-colors"
-        >
-          Eliminar
-        </button>
-      </div>
-    </div>
-  );
-
   return (
-    <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 space-y-6">
-      {/* Header con título y botones */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 className="text-xl font-semibold text-gray-900">Gestión de Usuarios</h2>
-        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-          <div className="relative w-full sm:w-64">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <input
-              type="text"
-              placeholder="Buscar usuarios..."
-              className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          {!showForm && (
-            <button
-              onClick={() => {
-                setShowForm(true);
-                // Scroll al formulario en dispositivos móviles
-                if (window.innerWidth < 768) {
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }
-              }}
-              className="w-full sm:w-auto bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Nuevo Usuario
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Selector de vista para móviles */}
-      <div className="sm:hidden mb-4 flex rounded-md shadow-sm" role="group">
-        <button
-          type="button"
-          onClick={() => setViewMode('table')}
-          className={`px-4 py-2 text-sm font-medium rounded-l-lg flex-1 ${viewMode === 'table' ? 'bg-black text-white' : 'bg-white text-gray-700 border border-gray-300'}`}
+    <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-semibold">Gestión de Productos</h2>
+        <button 
+          onClick={handleNew}
+          className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800 transition-colors"
         >
-          Tabla
-        </button>
-        <button
-          type="button"
-          onClick={() => setViewMode('cards')}
-          className={`px-4 py-2 text-sm font-medium rounded-r-lg flex-1 ${viewMode === 'cards' ? 'bg-black text-white' : 'bg-white text-gray-700 border border-gray-300'}`}
-        >
-          Tarjetas
+          Nuevo Producto
         </button>
       </div>
 
-      {error && (
-        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded" role="alert">
-          <p className="font-bold">Error</p>
-          <p>{error}</p>
-        </div>
-      )}
+      {error && <div className="text-red-500 mb-4">{error}</div>}
 
-      {showForm && (
-        <div className="bg-gray-50 p-4 sm:p-6 rounded-lg border border-gray-200 mb-6 animate-fadeIn">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            {currentUser ? (
-              <>
-                <svg className="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-                Editar Usuario
-              </>
-            ) : (
-              <>
-                <svg className="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                Nuevo Usuario
-              </>
-            )}
+      {showForm ? (
+        <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 mb-6">
+          <h3 className="text-lg font-medium mb-4">
+            {currentProduct ? 'Editar Producto' : 'Nuevo Producto'}
           </h3>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
                 <input
                   type="text"
                   name="nombre"
                   value={formData.nombre}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Categoría *</label>
                 <input
                   type="text"
-                  name="telefono"
-                  value={formData.telefono}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+                  name="categoria"
+                  value={formData.categoria}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
-                <select
-                  name="role"
-                  value={formData.role}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-                >
-                  <option value="user">Usuario</option>
-                  <option value="admin">Administrador</option>
-                </select>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Precio *</label>
+                <input
+                  type="text"
+                  name="precio"
+                  value={formData.precio}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Precio Original</label>
+                <input
+                  type="text"
+                  name="precio_original"
+                  value={formData.precio_original}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">URL de Imagen</label>
+                <input
+                  type="text"
+                  name="imagen"
+                  value={formData.imagen}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">URL de Imagen Adicional</label>
+                <input
+                  type="text"
+                  name="imagen1"
+                  value={formData.imagen1}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Badge (ej: NUEVO, SALE)</label>
+                <input
+                  type="text"
+                  name="badge"
+                  value={formData.badge}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Stock</label>
+                <input
+                  type="number"
+                  name="stock"
+                  value={formData.stock}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tallas (separadas por comas)</label>
+                <input
+                  type="text"
+                  value={formData.tallas.join(', ')}
+                  onChange={(e) => handleArrayChange(e, 'tallas')}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Colores (separados por comas)</label>
+                <input
+                  type="text"
+                  value={formData.colores.join(', ')}
+                  onChange={(e) => handleArrayChange(e, 'colores')}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                />
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 mt-4">
-              <button
-                type="submit"
-                className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors flex-1 flex items-center justify-center order-1 sm:order-2"
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Guardando...
-                  </>
-                ) : 'Guardar'}
-              </button>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+              <textarea
+                name="descripcion"
+                value={formData.descripcion}
+                onChange={handleChange}
+                rows="4"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              ></textarea>
+            </div>
+            <div className="flex justify-end space-x-3">
               <button
                 type="button"
-                onClick={resetForm}
-                className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors flex-1 flex items-center justify-center order-2 sm:order-1"
+                onClick={() => setShowForm(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
               >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
                 Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={loading || uploading}
+                className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 disabled:opacity-50"
+              >
+                {uploading ? 'Subiendo imágenes...' : loading ? 'Guardando...' : 'Guardar Producto'}
               </button>
             </div>
           </form>
         </div>
-      )}
+      ) : null}
 
-      {/* Vista de carga */}
-      {loading && users.length === 0 && (
-        <div className="flex justify-center items-center py-8">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
-        </div>
-      )}
-
-      {/* Vista de usuarios vacía */}
-      {!loading && users.length === 0 && (
-        <div className="bg-gray-50 p-8 rounded-lg text-center">
-          <p className="text-gray-500 mb-4">No hay usuarios disponibles</p>
-          <button 
-            onClick={() => setShowForm(true)}
-            className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800 transition-colors"
-          >
-            Crear Primer Usuario
-          </button>
-        </div>
-      )}
-
-      {/* Vista de tarjetas para móviles */}
-      {!loading && users.length > 0 && viewMode === 'cards' && (
-        <div className="grid grid-cols-1 gap-4">
-          {currentUsers.map(user => renderUserCard(user))}
-          
-          {/* Paginación */}
-          {filteredUsers.length > usersPerPage && (
-            <div className="flex justify-center mt-4">
-              <nav className="inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  <span className="sr-only">Anterior</span>
-                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </button>
-                {[...Array(totalPages)].map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCurrentPage(i + 1)}
-                    className={`relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium ${currentPage === i + 1 ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:bg-gray-50'}`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  <span className="sr-only">Siguiente</span>
-                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                  </svg>
-                </button>
-              </nav>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Tabla de usuarios (vista por defecto y para escritorio) */}
-      {!loading && users.length > 0 && viewMode === 'table' && (
-        <>
-          <div className="overflow-x-auto -mx-4 sm:mx-0">
-            <div className="inline-block min-w-full align-middle">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Teléfono</th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rol</th>
-                    <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {currentUsers.length > 0 ? (
-                    currentUsers.map((user) => (
-                      <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">{user.id}</td>
-                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-8 w-8 bg-gray-200 rounded-full flex items-center justify-center">
-                              <span className="text-xs sm:text-sm font-medium text-gray-500">{user.nombre?.charAt(0).toUpperCase() || '?'}</span>
-                            </div>
-                            <div className="ml-3">
-                              <div className="text-xs sm:text-sm font-medium text-gray-900">{user.nombre}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">{user.email}</td>
-                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 hidden sm:table-cell">{user.telefono || '-'}</td>
-                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}`}>
-                            {user.role === 'admin' ? 'Administrador' : 'Usuario'}
-                          </span>
-                        </td>
-                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-right">
-                          <div className="flex flex-col sm:flex-row sm:justify-end sm:space-x-3 space-y-1 sm:space-y-0">
-                            <button
-                              onClick={() => handleEdit(user)}
-                              className="text-indigo-600 hover:text-indigo-900"
-                            >
-                              <span className="hidden sm:inline">Editar</span>
-                              <svg className="w-5 h-5 inline sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => handleDelete(user.id)}
-                              className="text-red-600 hover:text-red-900"
-                            >
-                              <span className="hidden sm:inline">Eliminar</span>
-                              <svg className="w-5 h-5 inline sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="6" className="px-3 sm:px-6 py-4 text-center text-sm text-gray-500">
-                        {searchTerm ? 'No se encontraron usuarios con ese criterio' : 'No hay usuarios registrados'}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Paginación */}
-          {filteredUsers.length > usersPerPage && (
-            <div className="flex justify-center mt-4">
-              <nav className="inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  <span className="sr-only">Anterior</span>
-                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </button>
-                {[...Array(totalPages)].map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCurrentPage(i + 1)}
-                    className={`relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium ${currentPage === i + 1 ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:bg-gray-50'}`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  <span className="sr-only">Siguiente</span>
-                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                  </svg>
-                </button>
-              </nav>
-            </div>
-          )}
-        </>
-      )}
+      {/* Tabla de productos */}
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Imagen</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoría</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {loading && products.length === 0 ? (
+              <tr>
+                <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500">
+                  Cargando productos...
+                </td>
+              </tr>
+            ) : products.length === 0 ? (
+              <tr>
+                <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500">
+                  No hay productos disponibles
+                </td>
+              </tr>
+            ) : (
+              products.map(product => (
+                <tr key={product.id}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {product.imagen ? (
+                      <img src={product.imagen} alt={product.nombre} className="h-10 w-10 object-cover rounded" />
+                    ) : (
+                      <div className="h-10 w-10 bg-gray-200 rounded flex items-center justify-center text-gray-400">
+                        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.nombre}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.category}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.price}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.stock || 0}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <button
+                      onClick={() => handleEdit(product)}
+                      className="text-indigo-600 hover:text-indigo-900 mr-3"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => handleDelete(product.id)}
+                      className="text-red-600 hover:text-red-900"
+                    >
+                      Eliminar
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
 
-export default UserManagement;
+export default ProductManagement;

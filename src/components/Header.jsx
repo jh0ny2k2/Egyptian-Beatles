@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
+import { supabase } from '../supabaseClient';
 
 const menuItems = [
   { label: 'Mujer', sub: ['Vestidos', 'Tops', 'Pantalones', 'Faldas', 'Abrigos', 'Zapatos', 'Accesorios'] },
@@ -16,6 +17,8 @@ function Header() {
   const [submenu, setSubmenu] = useState(null)
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
+  const [searchSuggestions, setSearchSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const { user, isLoggedIn } = useAuth();
   const { cartItems, isCartOpen, toggleCart, removeFromCart, updateQuantity, getCartTotal, getCartItemsCount } = useCart();
   const navigate = useNavigate();
@@ -42,6 +45,47 @@ function Header() {
     setSubmenu(null);
   };
 
+  // Función para buscar sugerencias en tiempo real
+  const fetchSearchSuggestions = async (query) => {
+    if (!query.trim() || query.length < 2) {
+      setSearchSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('productos')
+        .select('id, nombre, category, imagen, price')
+        .or(`nombre.ilike.%${query}%,category.ilike.%${query}%`)
+        .limit(5);
+
+      if (error) throw error;
+
+      setSearchSuggestions(data || []);
+      setShowSuggestions(true);
+    } catch (error) {
+      console.error('Error fetching suggestions:', error);
+      setSearchSuggestions([]);
+    }
+  };
+
+  // Función para manejar cambios en el input de búsqueda
+  const handleSearchInputChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    fetchSearchSuggestions(value);
+  };
+
+  // Función para seleccionar una sugerencia
+  const handleSuggestionClick = (suggestion) => {
+    navigate(`/producto/${suggestion.id}`);
+    setSearchOpen(false);
+    setSearchInput('');
+    setSearchSuggestions([]);
+    setShowSuggestions(false);
+  };
+
   // Función para manejar la búsqueda
   const handleSearch = (e) => {
     e.preventDefault();
@@ -49,6 +93,8 @@ function Header() {
       navigate(`/productos?search=${searchInput}`);
       setSearchOpen(false);
       setSearchInput('');
+      setSearchSuggestions([]);
+      setShowSuggestions(false);
     }
   };
 
@@ -223,34 +269,100 @@ function Header() {
         </div>
       )}
 
-      {/* Search Modal */}
+      {/* Search Modal con autocompletado */}
       {searchOpen && (
         <div className="fixed inset-0 z-50 bg-white">
           <div className="max-w-2xl mx-auto pt-20 px-4">
             <div className="flex items-center justify-between mb-8">
               <h2 className="text-2xl font-bold">Buscar</h2>
-              <button onClick={() => setSearchOpen(false)} className="text-gray-500 hover:text-black">
+              <button 
+                onClick={() => {
+                  setSearchOpen(false);
+                  setSearchInput('');
+                  setSearchSuggestions([]);
+                  setShowSuggestions(false);
+                }} 
+                className="text-gray-500 hover:text-black"
+              >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-            <form onSubmit={handleSearch}>
-              <input
-                type="text"
-                placeholder="¿Qué estás buscando?"
-                className="w-full text-xl py-4 border-b-2 border-gray-300 focus:border-black focus:outline-none"
-                autoFocus
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-              />
-              <button 
-                type="submit" 
-                className="mt-4 bg-black text-white px-6 py-2 rounded-lg hover:bg-gray-800 transition-colors"
-              >
-                Buscar
-              </button>
-            </form>
+            
+            <div className="relative">
+              <form onSubmit={handleSearch}>
+                <input
+                  type="text"
+                  placeholder="¿Qué estás buscando?"
+                  className="w-full text-xl py-4 border-b-2 border-gray-300 focus:border-black focus:outline-none"
+                  autoFocus
+                  value={searchInput}
+                  onChange={handleSearchInputChange}
+                  onFocus={() => searchInput.length >= 2 && setShowSuggestions(true)}
+                />
+                <button 
+                  type="submit" 
+                  className="mt-4 bg-black text-white px-6 py-2 rounded-lg hover:bg-gray-800 transition-colors"
+                >
+                  Buscar
+                </button>
+              </form>
+
+              {/* Sugerencias de autocompletado con diseño de dos por fila */}
+              {showSuggestions && searchSuggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 bg-white rounded-lg mt-2 max-h-[calc(100vh-200px)] overflow-y-auto z-10">
+                  <div className="p-3">
+                    <div className="grid md:grid-cols-2 gap-3">
+                      {searchSuggestions.map((suggestion, index) => (
+                        <div
+                          key={suggestion.id}
+                          onClick={() => handleSuggestionClick(suggestion)}
+                          className="group flex flex-col items-center p-3 hover:bg-gray-50 cursor-pointer rounded-lg transition-all duration-200  border-gray-100 hover:border-gray-200"
+                        >
+                          {/* Imagen del producto */}
+                          <div className="w-48 h-48 rounded-lg overflow-hidden mb-2 bg-gray-100">
+                            <img
+                              src={suggestion.imagen || 'https://via.placeholder.com/64x64?text=No+Image'}
+                              alt={suggestion.nombre}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = 'https://via.placeholder.com/64x64?text=No+Image';
+                              }}
+                            />
+                          </div>
+                          
+                          {/* Información del producto */}
+                          <div className="text-center">
+                            <h4 className="font-medium text-gray-900 text-xs mb-1 line-clamp-2 leading-tight">
+                              {suggestion.nombre}
+                            </h4>
+                            <p className="text-sm font-semibold text-gray-900">
+                              {suggestion.price}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Mensaje cuando no hay sugerencias */}
+              {showSuggestions && searchInput.length >= 2 && searchSuggestions.length === 0 && (
+                <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg mt-2 p-6 text-center z-10">
+                  <div className="flex flex-col items-center">
+                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+                      <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-base font-medium text-gray-900 mb-1">No se encontraron productos</h3>
+                    <p className="text-gray-500 text-sm">Intenta con otros términos de búsqueda</p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
