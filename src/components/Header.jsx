@@ -19,9 +19,93 @@ function Header() {
   const [searchInput, setSearchInput] = useState('');
   const [searchSuggestions, setSearchSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [productsWithStock, setProductsWithStock] = useState({});
+  
   const { user, isLoggedIn } = useAuth();
   const { cartItems, isCartOpen, toggleCart, removeFromCart, updateQuantity, getCartTotal, getCartItemsCount } = useCart();
   const navigate = useNavigate();
+
+  // Función para obtener stock por talla
+  const getStockForSize = (productId, size) => {
+    const product = productsWithStock[productId];
+    if (!product || !product.stock_por_talla) return 0;
+    
+    try {
+      let stockData = {};
+      if (typeof product.stock_por_talla === 'string') {
+        stockData = JSON.parse(product.stock_por_talla);
+      } else {
+        stockData = product.stock_por_talla;
+      }
+      return stockData[size] || 0;
+    } catch (error) {
+      console.error('Error parsing stock_por_talla:', error);
+      return 0;
+    }
+  };
+  
+  // Función para verificar si hay stock bajo
+  const isLowStock = (productId, size) => {
+    const stock = getStockForSize(productId, size);
+    return stock > 0 && stock < 5;
+  };
+  
+  // Función para verificar si no hay stock
+  const isOutOfStock = (productId, size) => {
+    return getStockForSize(productId, size) === 0;
+  };
+  
+  // Función para cargar información de productos
+  const loadProductsStock = async () => {
+    try {
+      const productIds = [...new Set(cartItems.map(item => item.id))];
+      if (productIds.length === 0) return;
+      
+      const { data, error } = await supabase
+        .from('productos')
+        .select('id, stock_por_talla')
+        .in('id', productIds);
+        
+      if (error) throw error;
+      
+      const stockMap = {};
+      data.forEach(product => {
+        stockMap[product.id] = product;
+      });
+      
+      setProductsWithStock(stockMap);
+    } catch (error) {
+      console.error('Error loading products stock:', error);
+    }
+  };
+  
+  // Cargar stock cuando cambie el carrito
+  useEffect(() => {
+    if (cartItems.length > 0) {
+      loadProductsStock();
+    }
+  }, [cartItems]);
+  
+  // Función para validar si se puede proceder al pago
+  const canProceedToPayment = () => {
+    return !cartItems.some(item => {
+      if (item.selectedSize) {
+        return isOutOfStock(item.id, item.selectedSize);
+      }
+      return false;
+    });
+  };
+  
+  // Función para manejar el pago
+  const handleProceedToPayment = () => {
+    if (!canProceedToPayment()) {
+      alert('No puedes proceder al pago porque algunos productos no tienen stock disponible.');
+      return;
+    }
+    // Redirigir al checkout
+    navigate('/checkout');
+    toggleCart(); // Cerrar el carrito
+  };
 
   // Función para manejar la navegación a productos con categoría
   const handleCategoryClick = (category) => {
@@ -195,8 +279,8 @@ function Header() {
                 </div>
                 <span className="text-center text-lg mb-6">El carrito está vacío</span>
                 <button 
-                  className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-900 transition-colors max-w-xs"
                   onClick={toggleCart}
+                  className="w-full border border-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
                 >
                   Seguir comprando
                 </button>
@@ -209,76 +293,112 @@ function Header() {
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-6">
-                  {cartItems.map((item, index) => (
-                    <div key={`${item.id}-${item.selectedSize || 'no-size'}-${item.selectedColor || 'no-color'}-${index}`} className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
-                      <img 
-                        src={item.image || item.imagen} 
-                        alt={item.name || item.nombre} 
-                        className="w-16 h-16 object-cover rounded-lg"
-                      />
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-sm">{item.name || item.nombre}</h3>
-                        <p className="text-gray-600 text-xs">{item.category}</p>
-                        {/* Mostrar variaciones seleccionadas */}
-                        {(item.selectedSize || item.selectedColor) && (
-                          <div className="text-xs text-gray-500 mt-1">
-                            {item.selectedSize && <span>Talla: {item.selectedSize}</span>}
-                            {item.selectedSize && item.selectedColor && <span> | </span>}
-                            {item.selectedColor && <span>Color: {item.selectedColor}</span>}
+                  {cartItems.map((item, index) => {
+                    const hasLowStock = item.selectedSize && isLowStock(item.id, item.selectedSize);
+                    const hasNoStock = item.selectedSize && isOutOfStock(item.id, item.selectedSize);
+                    const availableStock = item.selectedSize ? getStockForSize(item.id, item.selectedSize) : null;
+                    
+                    return (
+                      <div key={`${item.id}-${item.selectedSize || 'no-size'}-${item.selectedColor || 'no-color'}-${index}`} className="mb-6 pb-6 border-b border-gray-100">
+                        {/* Alerta de stock bajo o sin stock */}
+                        {hasNoStock && (
+                          <div className="bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded mb-3 text-sm">
+                            ⚠️ Sin stock disponible - No se puede proceder al pago
                           </div>
                         )}
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="font-bold">
-                            <span className="font-bold">
-                              {(() => {
-                                let price = item.price;
-                                
-                                // Si el precio ya es una cadena con símbolo de moneda, mostrarlo tal como está
-                                if (typeof price === 'string' && (price.includes('€') || price.includes('$'))) {
-                                  return price;
-                                }
-                                
-                                // Si es una cadena sin símbolo, limpiar y convertir a número
-                                if (typeof price === 'string') {
-                                  price = price.replace(/[€£¥₹]/g, '').replace(/\s/g, '');
-                                  price = parseFloat(price);
-                                }
-                                
-                                // Si es un número válido, formatear con símbolo de euro
-                                if (!isNaN(price) && price >= 0) {
-                                  return `€${price.toFixed(2)}`;
-                                }
-                                
-                                // Fallback si el precio no es válido
-                                return '€0.00';
-                              })()} 
-                            </span>
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <button 
-                              onClick={() => updateQuantity(item.id, item.quantity - 1, item.selectedSize, item.selectedColor)}
-                              className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center text-sm hover:bg-gray-100"
-                            >
-                              -
-                            </button>
-                            <span className="text-sm font-medium">{item.quantity}</span>
-                            <button 
-                              onClick={() => updateQuantity(item.id, item.quantity + 1, item.selectedSize, item.selectedColor)}
-                              className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center text-sm hover:bg-gray-100"
-                            >
-                              +
-                            </button>
+                        {hasLowStock && !hasNoStock && (
+                          <div className="bg-orange-100 border border-orange-400 text-orange-700 px-3 py-2 rounded mb-3 text-sm">
+                            🔥 ¡Últimas tallas! Solo quedan {availableStock} unidades
                           </div>
+                        )}
+                        
+                        <div className="flex items-center gap-4">
+                          <img 
+                            src={item.image || item.imagen} 
+                            alt={item.name || item.nombre} 
+                            className="w-16 h-16 object-cover rounded-lg"
+                          />
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-sm">{item.name || item.nombre}</h3>
+                            <p className="text-gray-600 text-xs">{item.category}</p>
+                            {/* Mostrar variaciones seleccionadas */}
+                            {(item.selectedSize || item.selectedColor) && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                {item.selectedSize && (
+                                  <span className={hasNoStock ? 'text-red-600 font-semibold' : ''}>
+                                    Talla: {item.selectedSize}
+                                    {availableStock !== null && ` (Stock: ${availableStock})`}
+                                  </span>
+                                )}
+                                {item.selectedSize && item.selectedColor && <span> | </span>}
+                                {item.selectedColor && <span>Color: {item.selectedColor}</span>}
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between mt-2">
+                              <span className="font-bold">
+                                <span className="font-bold">
+                                  {(() => {
+                                    let price = item.price;
+                                    
+                                    // Si el precio ya es una cadena con símbolo de moneda, mostrarlo tal como está
+                                    if (typeof price === 'string' && (price.includes('€') || price.includes('$'))) {
+                                      return price;
+                                    }
+                                    
+                                    // Si es una cadena sin símbolo, limpiar y convertir a número
+                                    if (typeof price === 'string') {
+                                      price = price.replace(/[€£¥₹]/g, '').replace(/\s/g, '');
+                                      price = parseFloat(price);
+                                    }
+                                    
+                                    // Si es un número válido, formatear con símbolo de euro
+                                    if (!isNaN(price) && price >= 0) {
+                                      return `€${price.toFixed(2)}`;
+                                    }
+                                    
+                                    // Fallback si el precio no es válido
+                                    return '€0.00';
+                                  })()} 
+                                </span>
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <button 
+                                  onClick={() => updateQuantity(item.id, item.quantity - 1, item.selectedSize, item.selectedColor)}
+                                  className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center text-sm hover:bg-gray-100"
+                                >
+                                  -
+                                </button>
+                                <span className="text-sm font-medium">{item.quantity}</span>
+                                <button 
+                                  onClick={() => {
+                                    // Verificar si hay suficiente stock antes de aumentar
+                                    if (item.selectedSize) {
+                                      const currentStock = getStockForSize(item.id, item.selectedSize);
+                                      if (item.quantity >= currentStock) {
+                                        alert(`Solo hay ${currentStock} unidades disponibles de esta talla`);
+                                        return;
+                                      }
+                                    }
+                                    updateQuantity(item.id, item.quantity + 1, item.selectedSize, item.selectedColor);
+                                  }}
+                                  className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center text-sm hover:bg-gray-100"
+                                  disabled={hasNoStock}
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => removeFromCart(item.id, item.selectedSize, item.selectedColor)}
+                            className="text-gray-400 hover:text-red-500 text-sm"
+                          >
+                            ×
+                          </button>
                         </div>
                       </div>
-                      <button 
-                        onClick={() => removeFromCart(item.id, item.selectedSize, item.selectedColor)}
-                        className="text-gray-400 hover:text-red-500 text-sm"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 
                 <div className="p-6 border-t bg-gray-50">
@@ -286,7 +406,23 @@ function Header() {
                     <span className="font-bold text-lg">Total:</span>
                     <span className="font-bold text-xl">{getCartTotal().toFixed(2)}€</span>
                   </div>
-                  <button className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-900 transition-colors mb-2">
+                  
+                  {/* Mostrar alerta si no se puede proceder al pago */}
+                  {!canProceedToPayment() && (
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded mb-3 text-sm">
+                      ⚠️ No puedes proceder al pago porque algunos productos no tienen stock disponible
+                    </div>
+                  )}
+                  
+                  <button 
+                    onClick={handleProceedToPayment}
+                    disabled={!canProceedToPayment()}
+                    className={`w-full py-3 rounded-lg font-semibold transition-colors mb-2 ${
+                      canProceedToPayment() 
+                        ? 'bg-black text-white hover:bg-gray-900' 
+                        : 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                    }`}
+                  >
                     Proceder al pago
                   </button>
                   <button 

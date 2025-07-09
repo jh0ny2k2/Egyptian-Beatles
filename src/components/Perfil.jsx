@@ -13,6 +13,54 @@ function Perfil() {
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState({ texto: '', tipo: '' });
   const fileInputRef = useRef(null);
+  const [pedidoSeleccionado, setPedidoSeleccionado] = useState(null);
+  const [mostrarDetallesPedido, setMostrarDetallesPedido] = useState(false);
+  const [comentariosPedido, setComentariosPedido] = useState([]);
+
+  const verDetallesPedido = async (pedido) => {
+    try {
+      // Obtener los items del pedido
+      const { data: items, error } = await supabase
+        .from('pedido_items')
+        .select('*')
+        .eq('pedido_id', pedido.id);
+      
+      if (error) throw error;
+      
+      // Obtener los comentarios del pedido
+      try {
+        const { data: comentarios, error: errorComentarios } = await supabase
+          .from('pedido_comentarios')
+          .select('*')
+          .eq('pedido_id', pedido.id)
+          .order('created_at', { ascending: false });
+        
+        if (errorComentarios && !errorComentarios.message.includes('relation "pedido_comentarios" does not exist')) {
+          throw errorComentarios;
+        }
+        
+        setComentariosPedido(comentarios || []);
+      } catch (comentarioError) {
+        console.error('Error al cargar comentarios:', comentarioError);
+        setComentariosPedido([]);
+      }
+      
+      setPedidoSeleccionado({
+        ...pedido,
+        items: items || []
+      });
+      setMostrarDetallesPedido(true);
+    } catch (error) {
+      console.error('Error al cargar detalles del pedido:', error);
+      setMensaje({ texto: 'Error al cargar los detalles del pedido', tipo: 'error' });
+    }
+  };
+
+  const cerrarDetallesPedido = () => {
+    setMostrarDetallesPedido(false);
+    setPedidoSeleccionado(null);
+    setComentariosPedido([]);
+  };
   
   // Estados para edición de perfil
   const [editando, setEditando] = useState(false);
@@ -62,7 +110,19 @@ function Perfil() {
         try {
           const { data, error } = await supabase
             .from('pedidos')
-            .select('*')
+            .select(`
+              *,
+              pedido_items (
+                id,
+                producto_id,
+                nombre_producto,
+                precio,
+                cantidad,
+                talla,
+                color,
+                imagen
+              )
+            `)
             .eq('user_id', user.id)
             .order('created_at', { ascending: false });
           
@@ -758,11 +818,201 @@ function Perfil() {
                         </div>
                       </div>
                       <div className="mt-3 pt-3 border-t border-gray-100">
-                        <p className="text-sm text-gray-600">{pedido.items.length} productos</p>
-                        <button className="text-sm text-black underline mt-1">Ver detalles</button>
+                        <p className="text-sm text-gray-600">{pedido.pedido_items?.length || 0} productos</p>
+                        <button 
+                        onClick={() => verDetallesPedido(pedido)}
+                        className="text-sm text-black underline mt-1 hover:text-gray-600 transition-colors"
+                      >
+                        Ver detalles
+                      </button>
                       </div>
                     </div>
                   ))}
+                </div>
+
+                
+              )}
+
+              {/* Modal de detalles del pedido */}
+              {mostrarDetallesPedido && pedidoSeleccionado && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                  <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                    {/* Header del modal */}
+                    <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex justify-between items-center">
+                      <h2 className="text-2xl font-bold">Detalles del Pedido #{pedidoSeleccionado.id}</h2>
+                      <button
+                        onClick={cerrarDetallesPedido}
+                        className="text-gray-500 hover:text-gray-700 text-2xl"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    
+                    {/* Contenido del modal */}
+                    <div className="p-6 space-y-6">
+                      {/* Información general del pedido */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-semibold border-b pb-2">Información del Pedido</h3>
+                          <div className="space-y-2">
+                            <p><span className="font-medium">Fecha:</span> {new Date(pedidoSeleccionado.created_at).toLocaleDateString('es-ES', { 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}</p>
+                            <p><span className="font-medium">Estado:</span> 
+                              <span className={`ml-2 inline-block px-2 py-1 text-xs rounded-full ${
+                                pedidoSeleccionado.estado === 'completado' ? 'bg-green-100 text-green-800' : 
+                                pedidoSeleccionado.estado === 'enviado' ? 'bg-blue-100 text-blue-800' : 
+                                'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {pedidoSeleccionado.estado.charAt(0).toUpperCase() + pedidoSeleccionado.estado.slice(1)}
+                              </span>
+                            </p>
+                            <p><span className="font-medium">Método de pago:</span> {pedidoSeleccionado.metodo_pago || 'Tarjeta'}</p>
+                            <p><span className="font-medium">Tipo de envío:</span> {pedidoSeleccionado.tipo_envio || 'Estándar'}</p>
+                            {pedidoSeleccionado.telefono_contacto && (
+                              <p><span className="font-medium">Teléfono:</span> {pedidoSeleccionado.telefono_contacto}</p>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-semibold border-b pb-2">Dirección de Envío</h3>
+                          <div className="bg-gray-50 p-4 rounded-lg">
+                            <p className="text-sm">{pedidoSeleccionado.direccion_envio || 'No especificada'}</p>
+                          </div>
+                          
+                          {pedidoSeleccionado.notas && (
+                            <div>
+                              <h4 className="font-medium mb-2">Notas del pedido:</h4>
+                              <div className="bg-gray-50 p-4 rounded-lg">
+                                <p className="text-sm">{pedidoSeleccionado.notas}</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Productos del pedido */}
+                      <div>
+                        <h3 className="text-lg font-semibold border-b pb-2 mb-4">Productos ({pedidoSeleccionado.items.length})</h3>
+                        <div className="space-y-4">
+                          {pedidoSeleccionado.items.map((item, index) => (
+                            <div key={index} className="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg">
+                              {item.imagen && (
+                                <img 
+                                  src={item.imagen} 
+                                  alt={item.nombre_producto}
+                                  className="w-16 h-16 object-cover rounded-lg"
+                                />
+                              )}
+                              <div className="flex-1">
+                                <h4 className="font-medium">{item.nombre_producto}</h4>
+                                <div className="text-sm text-gray-600 space-y-1">
+                                  {item.talla && <p>Talla: {item.talla}</p>}
+                                  {item.color && <p>Color: {item.color}</p>}
+                                  <p>Cantidad: {item.cantidad}</p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-medium">${(item.precio * item.cantidad).toFixed(2)}</p>
+                                <p className="text-sm text-gray-600">${item.precio.toFixed(2)} c/u</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Sección de comentarios y seguimiento */}
+                      {comentariosPedido.length > 0 && (
+                        <div className="mb-6">
+                          <h4 className="font-semibold mb-4 text-lg">Seguimiento del Pedido</h4>
+                          <div className="space-y-4">
+                            {comentariosPedido.map((comentario, index) => (
+                              <div key={index} className="border-l-4 border-blue-500 pl-4 py-3 bg-blue-50 rounded-r-lg">
+                                <div className="flex justify-between items-start mb-2">
+                                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                    comentario.tipo === 'cambio_estado' 
+                                      ? 'bg-blue-100 text-blue-800' 
+                                      : 'bg-green-100 text-green-800'
+                                  }`}>
+                                    {comentario.tipo === 'cambio_estado' ? 'Actualización de Estado' : 'Comentario'}
+                                  </span>
+                                  <span className="text-sm text-gray-500">
+                                    {new Date(comentario.created_at).toLocaleString('es-ES', {
+                                      year: 'numeric',
+                                      month: 'long',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </span>
+                                </div>
+                                {comentario.tipo === 'cambio_estado' && comentario.estado_anterior && comentario.estado_nuevo && (
+                                  <div className="mb-2">
+                                    <span className="text-sm text-gray-600">
+                                      Estado cambiado de 
+                                      <span className="font-semibold text-gray-800"> {comentario.estado_anterior} </span>
+                                      a 
+                                      <span className="font-semibold text-gray-800"> {comentario.estado_nuevo}</span>
+                                    </span>
+                                  </div>
+                                )}
+                                <p className="text-gray-800 leading-relaxed">{comentario.comentario}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Mensaje cuando no hay comentarios */}
+                      {comentariosPedido.length === 0 && (
+                        <div className="mb-6 p-4 bg-gray-50 rounded-lg text-center">
+                          <p className="text-gray-600">
+                            <svg className="w-8 h-8 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-3.582 8-8 8a8.955 8.955 0 01-2.697-.413l-2.725.725a1 1 0 01-1.265-1.265l.725-2.725A8.955 8.955 0 013 12c0-4.418 3.582-8 8-8s8 3.582 8 8z" />
+                            </svg>
+                            No hay actualizaciones disponibles para este pedido.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Resumen de costos */}
+                      <div className="border-t pt-4">
+                        <div className="bg-gray-50 p-4 rounded-lg">
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
+                              <span>Subtotal:</span>
+                              <span>${(pedidoSeleccionado.total - (pedidoSeleccionado.costo_envio || 0)).toFixed(2)}</span>
+                            </div>
+                            {pedidoSeleccionado.costo_envio > 0 && (
+                              <div className="flex justify-between">
+                                <span>Envío:</span>
+                                <span>${pedidoSeleccionado.costo_envio.toFixed(2)}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between font-bold text-lg border-t pt-2">
+                              <span>Total:</span>
+                              <span>${pedidoSeleccionado.total.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Footer del modal */}
+                    <div className="sticky bottom-0 bg-white border-t border-gray-200 p-6 flex justify-end">
+                      <button
+                        onClick={cerrarDetallesPedido}
+                        className="bg-black text-white py-2 px-6 rounded-lg font-medium hover:bg-gray-800 transition-colors"
+                      >
+                        Cerrar
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

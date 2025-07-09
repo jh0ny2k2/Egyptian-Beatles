@@ -17,6 +17,15 @@ import Admin from './components/Admin';
 import ResetPassword from './components/ResetPassword';
 import { supabase } from "./supabaseClient";
 import { useAuth } from "./context/AuthContext";
+import Checkout from './components/Checkout';
+
+// FOOTER
+import Faq from "./components/footer/Faq";
+import Envios from "./components/footer/EnviosDevoluciones";
+import Terminos from './components/footer/Terminos';
+import Privacidad from './components/footer/Privacidad';
+import Cookies from './components/footer/Cookies';
+import Accesibilidad from './components/footer/Accesibilidad';
 
 function App() {
   const location = useLocation();
@@ -63,6 +72,13 @@ function App() {
         <Route path="/contacto" element={<Contacto />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/faq" element={<Faq />} />
+        <Route path="/envios" element={<Envios />} />
+        <Route path="/terminos" element={<Terminos />} />
+        <Route path="/privacidad" element={<Privacidad />} />
+        <Route path="/cookies" element={<Cookies />} />
+        <Route path="/accesibilidad" element={<Accesibilidad />} />
+        <Route path="/checkout" element={<Checkout />} />
       </Routes>
       <Footer />
     </>

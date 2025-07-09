@@ -18,7 +18,6 @@ function ProductManagement() {
     imagen: '',
     imagen1: '',
     badge: '',
-    stock: 0,
     sizes: [], // Usar 'sizes' consistentemente
     colors: [] // Usar 'colors' consistentemente
   });
@@ -30,6 +29,8 @@ function ProductManagement() {
     imagen: '',
     imagen1: ''
   });
+
+  const [stockPorTalla, setStockPorTalla] = useState({});
 
   // Cargar productos al montar el componente
   useEffect(() => {
@@ -136,7 +137,7 @@ function ProductManagement() {
 
   // Función para editar un producto - CORREGIDA
   const handleEdit = (product) => {
-  setCurrentProduct(product); // Cambiar de setEditingId a setCurrentProduct
+  setCurrentProduct(product);
   setFormData({
     nombre: product.nombre || '',
     precio: product.price || '',
@@ -146,10 +147,27 @@ function ProductManagement() {
     imagen: product.imagen || '',
     imagen1: product.imagen1 || '',
     badge: product.badge || '',
-    stock: product.stock || 0,
-    sizes: product.sizes || [], // Usar 'sizes'
-    colors: product.colors || [] // Usar 'colors'
+    sizes: product.sizes || [],
+    colors: product.colors || []
   });
+  
+  // Manejo mejorado del JSON
+  try {
+    let stockData = {};
+    if (product.stock_por_talla) {
+      if (typeof product.stock_por_talla === 'string') {
+        stockData = JSON.parse(product.stock_por_talla);
+      } else {
+        stockData = product.stock_por_talla;
+      }
+    }
+    console.log('Stock data parsed:', stockData); // Para debug
+    setStockPorTalla(stockData);
+  } catch (error) {
+    console.error('Error parsing stock_por_talla:', error);
+    setStockPorTalla({});
+  }
+  
   setShowForm(true);
 };
 
@@ -166,10 +184,10 @@ function ProductManagement() {
       imagen: '',
       imagen1: '',
       badge: '',
-      stock: 0,
       sizes: [],
       colors: []
     });
+    setStockPorTalla({}); // AGREGAR ESTA LÍNEA
     setImageFiles({
       imagen: null,
       imagen1: null
@@ -222,9 +240,9 @@ function ProductManagement() {
   imagen: imagenUrl || null,
   imagen1: imagen1Url || null,
   badge: formData.badge || null,
-  stock: formData.stock || 0,
   sizes: formData.sizes || [],
-  colors: formData.colors || []
+  colors: formData.colors || [],
+  stock_por_talla: JSON.stringify(stockPorTalla)
   };
 
   let result;
@@ -259,6 +277,8 @@ function ProductManagement() {
   setUploading(false);
   }
   };
+
+
 
   // Función para eliminar un producto
   const handleDelete = async (id) => {
@@ -378,16 +398,7 @@ function ProductManagement() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Stock</label>
-                <input
-                  type="number"
-                  name="stock"
-                  value={formData.stock}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
-              </div>
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Tallas (separadas por comas)
@@ -414,6 +425,26 @@ function ProductManagement() {
                 />
               </div>
             </div>
+            {formData.sizes && formData.sizes.length > 0 && (
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Stock por talla:</label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {formData.sizes.map((size) => (
+                    <div key={size} className="flex items-center space-x-2">
+                      <span className="text-sm font-medium w-8">{size}:</span>
+                      <input
+                        type="number"
+                        min="0"
+                        className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
+                        value={stockPorTalla[size] || ''}
+                        onChange={e => setStockPorTalla({ ...stockPorTalla, [size]: parseInt(e.target.value) || 0 })}
+                        placeholder="0"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
               <textarea
@@ -494,7 +525,28 @@ function ProductManagement() {
                     {product.price}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {product.stock}
+                    {product.stock_por_talla ? (
+                      typeof product.stock_por_talla === 'string' ? (
+                        // Si es string, parsearlo y mostrarlo formateado
+                        (() => {
+                          try {
+                            const stockData = JSON.parse(product.stock_por_talla);
+                            return Object.entries(stockData)
+                              .map(([size, stock]) => `${size}: ${stock}`)
+                              .join(', ');
+                          } catch {
+                            return product.stock_por_talla;
+                          }
+                        })()
+                      ) : (
+                        // Si ya es objeto, mostrarlo directamente
+                        Object.entries(product.stock_por_talla)
+                          .map(([size, stock]) => `${size}: ${stock}`)
+                          .join(', ')
+                      )
+                    ) : (
+                      'Sin stock por talla'
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <button
@@ -546,3 +598,4 @@ const getNextId = async () => {
     return Date.now();
   }
 };
+

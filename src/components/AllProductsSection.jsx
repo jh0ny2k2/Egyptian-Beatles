@@ -183,11 +183,16 @@ const AllProductsSection = () => {
     e.target.src = 'https://via.placeholder.com/400x400?text=Imagen+no+disponible';
   };
 
-  const handleAddToCart = (product) => {
-    // Verificar si el producto tiene variaciones (tallas o colores)
-    const hasVariations = (product.sizes && product.sizes.length > 0) || 
-                         (product.colors && product.colors.length > 0);
-    
+  const handleAddToCart = (product, e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const hasVariations =
+      (product.sizes && product.sizes.length > 0) ||
+      (product.colors && product.colors.length > 0) ||
+      (product.tallas && product.tallas.length > 0) ||
+      (product.colores && product.colores.length > 0);
     if (hasVariations) {
       setSelectedProduct(product);
       setModalOpen(true);

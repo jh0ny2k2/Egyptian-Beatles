@@ -14,35 +14,77 @@ const ProductDetail = () => {
   const [quantity, setQuantity] = useState(1);
   const { addToCart } = useCart();
 
+  // Agregar después de la línea donde se definen los estados
+  const [stockPorTalla, setStockPorTalla] = useState({});
+  
+  // Modificar el useEffect para incluir el parsing del stock
   useEffect(() => {
     fetchProduct();
   }, [id]);
-
+  
   const fetchProduct = async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('productos')
         .select('*')
-        .eq('id', parseInt(id))
+        .eq('id', id)
         .single();
-
-      if (error) {
-        throw error;
-      }
-
+  
+      if (error) throw error;
       setProduct(data);
-      setSelectedSize(data.talla || '');
-      setSelectedColor(data.color || '');
+      
+      // Parsear stock por talla
+      try {
+        let stockData = {};
+        if (data.stock_por_talla) {
+          if (typeof data.stock_por_talla === 'string') {
+            stockData = JSON.parse(data.stock_por_talla);
+          } else {
+            stockData = data.stock_por_talla;
+          }
+        }
+        setStockPorTalla(stockData);
+      } catch (error) {
+        console.error('Error parsing stock_por_talla:', error);
+        setStockPorTalla({});
+      }
     } catch (error) {
-      console.error('Error fetching product:', error);
-      setError('Producto no encontrado');
+      setError(error.message);
     } finally {
       setLoading(false);
     }
   };
 
+  // Agregar estas funciones helper
+  const getStockForSize = (size) => {
+    return stockPorTalla[size] || 0;
+  };
+  
+  const isSizeAvailable = (size) => {
+    return getStockForSize(size) > 0;
+  };
+  
+  const isLowStock = (size) => {
+    const stock = getStockForSize(size);
+    return stock > 0 && stock < 5;
+  };
+  
+  // Modificar el handleAddToCart
   const handleAddToCart = () => {
+    // Verificar stock disponible para la talla seleccionada
+    if (selectedSize) {
+      const availableStock = getStockForSize(selectedSize);
+      if (availableStock === 0) {
+        alert('Esta talla no está disponible');
+        return;
+      }
+      if (quantity > availableStock) {
+        alert(`Solo quedan ${availableStock} unidades de esta talla`);
+        return;
+      }
+    }
+  
     if (product) {
       addToCart({
         id: product.id,
@@ -156,20 +198,45 @@ const ProductDetail = () => {
             <div>
               <h3 className="text-sm font-medium text-gray-900 mb-3">TALLA</h3>
               <div className="flex flex-wrap gap-2">
-                {sizes.map((size) => (
-                  <button
-                    key={size}
-                    onClick={() => setSelectedSize(size)}
-                    className={`px-4 py-2 border rounded-md text-sm font-medium ${
-                      selectedSize === size
-                        ? 'border-black bg-black text-white'
-                        : 'border-gray-300 text-gray-700 hover:border-gray-400'
-                    }`}
-                  >
-                    {size}
-                  </button>
-                ))}
+                {sizes.map((size) => {
+                  const stock = getStockForSize(size);
+                  const available = isSizeAvailable(size);
+                  const lowStock = isLowStock(size);
+                  
+                  return (
+                    <div key={size} className="relative">
+                      <button
+                        onClick={() => available && setSelectedSize(size)}
+                        disabled={!available}
+                        className={`px-4 py-2 border rounded-md text-sm font-medium relative ${
+                          selectedSize === size
+                            ? 'border-black bg-black text-white'
+                            : available
+                            ? 'border-gray-300 text-gray-700 hover:border-gray-400'
+                            : 'border-gray-200 text-gray-400 bg-gray-100 cursor-not-allowed'
+                        }`}
+                      >
+                        {size}
+                        {!available && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-full h-0.5 bg-gray-400 transform rotate-45"></div>
+                          </div>
+                        )}
+                      </button>
+                      {available && lowStock && (
+                        <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-1 py-0.5 rounded">
+                          ¡Últimas!
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
+              {selectedSize && (
+                <p className="text-sm text-gray-500 mt-2">
+                  Stock disponible: {getStockForSize(selectedSize)}
+                </p>
+              )}
             </div>
 
             {/* Selector de color */}
