@@ -1,108 +1,110 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import { supabase } from '../supabaseClient';
+import { Link } from "react-router-dom";
+import { useCart } from "../context/CartContext";
 
 const ProductSection = () => {
-  const [startIdx, setStartIdx] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const [startX, setStartX] = useState(0);
-  const [scrollLeft, setScrollLeft] = useState(0);
-  const containerRef = useRef(null);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const { addToCart } = useCart();
   
-  const products = [
-    {
-      id: 1,
-      name: "Camiseta Vintage",
-      price: "$29.99",
-      originalPrice: "$39.99",
-      image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400",
-      category: "Camisetas",
-      badge: "SALE"
-    },
-    {
-      id: 2,
-      name: "Jeans Clásicos",
-      price: "$59.99",
-      image: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=400",
-      category: "Pantalones",
-      badge: "NUEVO"
-    },
-    {
-      id: 3,
-      name: "Chaqueta Denim",
-      price: "$79.99",
-      image: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400",
-      category: "Chaquetas"
-    },
-    {
-      id: 4,
-      name: "Sudadera Oversize",
-      price: "$49.99",
-      image: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=400",
-      category: "Sudaderas"
-    },
-    {
-      id: 5,
-      name: "Vestido Casual",
-      price: "$39.99",
-      image: "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=400",
-      category: "Vestidos"
-    },
-    {
-      id: 6,
-      name: "Camisa Formal",
-      price: "$45.99",
-      image: "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=400",
-      category: "Camisas"
-    },
-    {
-      id: 7,
-      name: "Shorts Deportivos",
-      price: "$24.99",
-      image: "https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=400",
-      category: "Shorts"
-    },
-    {
-      id: 8,
-      name: "Blazer Elegante",
-      price: "$89.99",
-      image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400",
-      category: "Blazers"
+  useEffect(() => {
+    fetchRandomProducts();
+  }, []);
+
+  const fetchRandomProducts = async () => {
+    try {
+      setLoading(true);
+      // Primero obtenemos todos los productos
+      const { data, error } = await supabase
+        .from('productos')
+        .select('*');
+
+      if (error) {
+        throw error;
+      }
+
+      console.log('Productos cargados:', data); // Para depuración
+
+      if (data && data.length > 0) {
+        // Seleccionamos 5 productos aleatorios
+        const randomProducts = getRandomProducts(data, 4);
+        setProducts(randomProducts);
+      } else {
+        setProducts([]);
+      }
+    } catch (error) {
+      console.error('Error al cargar productos:', error);
+      setError('Error al cargar los productos: ' + error.message);
+    } finally {
+      setLoading(false);
     }
-  ];
-
-  const handleMouseDown = (e) => {
-    setIsDragging(true);
-    setStartX(e.pageX - containerRef.current.offsetLeft);
-    setScrollLeft(containerRef.current.scrollLeft);
   };
 
-  const handleMouseMove = (e) => {
-    if (!isDragging) return;
+  // Función para seleccionar n productos aleatorios de un array
+  const getRandomProducts = (array, n) => {
+    // Si el array tiene menos elementos que n, devolvemos todo el array
+    if (array.length <= n) {
+      return array;
+    }
+    
+    // Creamos una copia del array para no modificar el original
+    const shuffled = [...array];
+    
+    // Algoritmo de Fisher-Yates para mezclar el array
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    
+    // Devolvemos los primeros n elementos
+    return shuffled.slice(0, n);
+  };
+
+  const handleImageError = (e) => {
+    e.target.src = 'https://via.placeholder.com/400x400?text=Imagen+no+disponible';
+  };
+
+  const handleAddToCart = (product, e) => {
     e.preventDefault();
-    const x = e.pageX - containerRef.current.offsetLeft;
-    const walk = (x - startX) * 0.8; // Reducido de 2 a 0.8 para menos sensibilidad
-    containerRef.current.scrollLeft = scrollLeft - walk;
+    e.stopPropagation();
+    addToCart({
+      id: product.id,
+      name: product.nombre,
+      price: product.precio || product.price,
+      image: product.imagen,
+      category: product.category
+    });
   };
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
+  if (loading) {
+    return (
+      <section className="py-16 px-4">
+        <div className="text-center mb-12">
+          <h3 className="text-2xl md:text-3xl font-bold text-black mb-4">PRODUCTOS DESTACADOS</h3>
+          <p className="text-gray-700">Los favoritos de nuestra comunidad Egyptian Beatles</p>
+        </div>
+        <div className="flex justify-center items-center h-64">
+          <div className="text-lg">Cargando productos...</div>
+        </div>
+      </section>
+    );
+  }
 
-  const handleTouchStart = (e) => {
-    setIsDragging(true);
-    setStartX(e.touches[0].pageX - containerRef.current.offsetLeft);
-    setScrollLeft(containerRef.current.scrollLeft);
-  };
-
-  const handleTouchMove = (e) => {
-    if (!isDragging) return;
-    const x = e.touches[0].pageX - containerRef.current.offsetLeft;
-    const walk = (x - startX) * 0.8; // Reducido de 2 a 0.8 para menos sensibilidad
-    containerRef.current.scrollLeft = scrollLeft - walk;
-  };
-
-  const handleTouchEnd = () => {
-    setIsDragging(false);
-  };
+  if (error) {
+    return (
+      <section className="py-16 px-4">
+        <div className="text-center mb-12">
+          <h3 className="text-2xl md:text-3xl font-bold text-black mb-4">PRODUCTOS DESTACADOS</h3>
+          <p className="text-gray-700">Los favoritos de nuestra comunidad Egyptian Beatles</p>
+        </div>
+        <div className="flex justify-center items-center h-64">
+          <div className="text-red-500">{error}</div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="py-16 px-4">
@@ -111,74 +113,52 @@ const ProductSection = () => {
         <p className="text-gray-700">Los favoritos de nuestra comunidad Egyptian Beatles</p>
       </div>
       
-      <div 
-        ref={containerRef}
-        className="flex gap-6 overflow-x-auto scrollbar-hide cursor-grab active:cursor-grabbing select-none"
-        style={{
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none',
-          WebkitScrollbar: { display: 'none' }
-        }}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
-        {products.map((product) => (
-          <div key={product.id} className="group bg-white rounded overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 min-w-[280px] flex-shrink-0">
-            <div className="relative rounded-xl aspect-square overflow-hidden">
-              <img
-                src={product.image}
-                alt={product.name}
-                className="w-full h-full object-cover group-hover:scale-110 rounded transition-transform duration-500 pointer-events-none"
-                draggable={false}
-              />
-              {product.badge && (
-                <span className={`absolute top-3 left-3 px-3 py-1 text-xs font-bold rounded-full ${
-                  product.badge === 'SALE' ? 'bg-red-500 text-white' :
-                  product.badge === 'NUEVO' ? 'bg-green-500 text-white' :
-                  'bg-black text-white'
-                }`}>
-                  {product.badge}
-                </span>
-              )}
-              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center">
-                <button className="bg-white text-black px-6 py-2 rounded-lg font-semibold opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 border border-black pointer-events-auto">
-                  Ver detalles
-                </button>
-              </div>
-            </div>
-            <div className="p-6 mt-4 rounded-xl bg-gray-300">
-              <div className="text-sm text-gray-600 font-medium mb-2">{product.category}</div>
-              <h3 className="font-semibold text-black mb-3 group-hover:text-gray-900 transition-colors">{product.name}</h3>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <span className="text-xl font-bold text-black">{product.price}</span>
-                  {product.originalPrice && (
-                    <span className="text-sm text-gray-500 line-through">{product.originalPrice}</span>
-                  )}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+        {products.length > 0 ? (
+          products.map((product) => (
+            <div key={product.id} className="relative group rounded-xs overflow-hidden transition-all duration-300">
+              <Link to={`/producto/${product.id}`} className="block">
+                <div className="aspect-square overflow-hidden  relative">
+                  {/* Imagen principal */}
+                  <img
+                    src={product.imagen}
+                    alt={product.nombre}
+                    className="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-0 absolute inset-0"
+                    onError={handleImageError}
+                  />
+                  {/* Imagen secundaria (visible en hover) */}
+                  <img
+                    src={product.imagen1 || product.imagen}
+                    alt={`${product.nombre} - vista alternativa`}
+                    className="w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-300 absolute inset-0"
+                    onError={handleImageError}
+                  />
+                  
+                  {/* Botón de añadir al carrito (visible en hover) - Ahora encima de la imagen */}
+                  <div className="absolute bottom-4 left-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <button
+                      className="w-full bg-white text-black py-3 font-medium text-center shadow-md"
+                      onClick={(e) => handleAddToCart(product, e)}
+                      aria-label="Añadir a la cesta"
+                    >
+                      Añadir a la cesta
+                    </button>
+                  </div>
                 </div>
-                <button className="bg-black text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-900 transition-all duration-200 transform hover:scale-105 pointer-events-auto">
-                  Agregar
-                </button>
-              </div>
+                <div className="p-4">
+                  <div className="uppercase text-xs text-gray-500 mb-1">{product.category}</div>
+                  <h3 className="font-semibold text-gray-900 mb-2 truncate">{product.nombre}</h3>
+                  <div className="font-bold text-black">{product.precio || product.price}</div>
+                </div>
+              </Link>
             </div>
+          ))
+        ) : (
+          <div className="col-span-full flex justify-center items-center h-64">
+            <div className="text-gray-500">No hay productos disponibles</div>
           </div>
-        ))}
+        )}
       </div>
-      
-      <style jsx>{`
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-      `}</style>
     </section>
   );
 };
