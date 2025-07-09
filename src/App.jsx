@@ -11,10 +11,10 @@ import ProductDetail from './components/ProductDetail';
 import Login from "./components/Login";
 import Registro from "./components/Registro";
 import Perfil from './components/Perfil';
-// Importamos los nuevos componentes
 import Sostenibilidad from './components/Sostenibilidad';
 import Contacto from './components/Contacto';
 import Admin from './components/Admin';
+import ResetPassword from './components/ResetPassword';
 import { supabase } from "./supabaseClient";
 import { useAuth } from "./context/AuthContext";
 
@@ -59,10 +59,10 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/registro" element={<Registro />} />
         <Route path="/perfil" element={<Perfil />} />
-        {/* Reemplazamos las rutas de AboutUs con las nuevas rutas específicas */}
         <Route path="/sostenibilidad" element={<Sostenibilidad />} />
         <Route path="/contacto" element={<Contacto />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
       </Routes>
       <Footer />
     </>
