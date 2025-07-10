@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { supabase } from '../supabaseClient';
+import usuarioIcon from '../assets/img/usuario.png'; // Agregar esta línea
 
 const menuItems = [
   { label: 'Mujer', sub: ['Vestidos', 'Tops', 'Pantalones', 'Faldas', 'Abrigos', 'Zapatos', 'Accesorios'] },
@@ -246,7 +247,10 @@ function Header() {
                 </span>
               </div>
             ) : (
-              <img src="/src/assets/img/usuario.png" className="w-6 h-6" alt="Iniciar sesión" />
+              // Cambiar esta línea:
+              // <img src="/src/assets/img/usuario.png" className="w-6 h-6" alt="Iniciar sesión" />
+              // Por esta:
+              <img src={usuarioIcon} className="w-6 h-6" alt="Iniciar sesión" />
             )}
           </Link>
         </div>
